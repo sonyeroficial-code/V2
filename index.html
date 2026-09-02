@@ -550,7 +550,14 @@
      El encabezado morado real sigue dentro de la pantalla; el fondo de espera queda blanco. */
   if(isIOS&&isStandalone) return;
   var css = 'background:#780699!important;background-image:linear-gradient(180deg,#780699 0%,#780699 100%)!important;';
+  function voucherTopActive(){
+    try{
+      return document.documentElement.classList.contains('__baucherTopActivo') ||
+        (document.body && document.body.classList.contains('__baucherTopActivo'));
+    }catch(e){ return false; }
+  }
   function paintOuter(){
+    if(voucherTopActive()) return;
     try{['homeView','homeFrame','newHomeFrame'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.cssText+=';'+css;});}catch(e){}
     try{
       var hf=document.getElementById('homeFrame');
@@ -27393,7 +27400,7 @@ import { getFirestore, doc, getDoc, collection, query, where, getDocs, limit } f
   function voucherIsActive(doc){
     try{
       if(!doc) return false;
-      if(homeIsActive(doc)) return false;
+      /* El Home puede seguir renderizado detrás del comprobante: el voucher visible tiene prioridad. */
       return isShown(doc.getElementById('voucherView')) || isShown(doc.getElementById('rcvVoucher'));
     }catch(e){ return false; }
   }
@@ -41623,7 +41630,9 @@ html.yosi-ios-standalone-full-v13 .stage > iframe{
     try{
       var hf=document.getElementById('homeFrame');
       if(hf) setBg(hf, SOLID);
-      if(document.body && document.body.classList.contains('mode-app')){
+      var voucherTopActive = document.documentElement.classList.contains('__baucherTopActivo') ||
+        (document.body && document.body.classList.contains('__baucherTopActivo'));
+      if(document.body && document.body.classList.contains('mode-app') && !voucherTopActive){
         var meta=document.querySelector('meta[name="theme-color"]');
         if(meta) meta.setAttribute('content',HOME);
       }
