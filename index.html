@@ -33,11 +33,10 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
-<meta name="yosi-build" content="biometria-perfil-v34-pwa-ios-android-status-v211-20260902"/>
+<meta name="yosi-build" content="biometria-perfil-v34-pwa-ios-android-status-v212-20260902"/>
 
-<link href="manifest.webmanifest?v=status-v211-20260902" rel="manifest"/>
-<meta content="#780699" media="(prefers-color-scheme: light)" name="theme-color"/>
-<meta content="#780699" media="(prefers-color-scheme: dark)" name="theme-color"/>
+<link href="manifest.webmanifest?v=status-v212-20260902" rel="manifest"/>
+<meta content="#780699" name="theme-color"/>
 <meta content="yes" name="mobile-web-app-capable"/>
 <meta content="Yape" name="application-name"/>
 <meta content="yes" name="apple-mobile-web-app-capable"/>
@@ -66,8 +65,8 @@
   try{
     if(window.top !== window || !('serviceWorker' in navigator)) return;
 
-    var SW_URL = './service-worker.js?v=status-v211-20260902';
-    var UPDATE_KEY = 'yape_sw_last_update_status_v211';
+    var SW_URL = './service-worker.js?v=status-v212-20260902';
+    var UPDATE_KEY = 'yape_sw_last_update_status_v212';
     var UPDATE_EVERY_MS = 0;
 
     function warmShell(reg){
@@ -112,8 +111,88 @@
   }catch(e){ console.warn(e); }
 })();</script>
 
+<!-- V212: un solo estado controla la barra nativa del documento principal. -->
+<script id="yosi-android-status-v212-final">(function(){
+  'use strict';
+  if(window.__yapeStatusV212) return;
+
+  var COLORS = { home:'#780699', voucher:'#4a1972' };
+  var screen = 'home';
+  var applying = false;
+
+  function themeMeta(){
+    var list = Array.prototype.slice.call(document.querySelectorAll('meta[name="theme-color"]'));
+    var meta = list[0];
+    if(!meta){
+      meta = document.createElement('meta');
+      meta.name = 'theme-color';
+      document.head.appendChild(meta);
+    }
+    meta.removeAttribute('media');
+    for(var i=1;i<list.length;i++){
+      try{ list[i].remove(); }catch(e){}
+    }
+    return meta;
+  }
+
+  function writeColor(force){
+    if(applying) return;
+    applying = true;
+    try{
+      var color = COLORS[screen] || COLORS.home;
+      var meta = themeMeta();
+      if(force || String(meta.getAttribute('content') || '').toLowerCase() !== color){
+        meta.setAttribute('content', color);
+        /* Mover la etiqueta obliga a Chrome Android a volver a leerla. */
+        document.head.appendChild(meta);
+      }
+      document.documentElement.classList.toggle('__baucherTopActivo', screen === 'voucher');
+      if(document.body) document.body.classList.toggle('__baucherTopActivo', screen === 'voucher');
+      try{
+        var status = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.StatusBar;
+        if(status && typeof status.setBackgroundColor === 'function') status.setBackgroundColor({color:color});
+      }catch(e){}
+      try{
+        if(window.StatusBar && typeof window.StatusBar.backgroundColorByHexString === 'function'){
+          window.StatusBar.backgroundColorByHexString(color);
+        }
+      }catch(e){}
+    }catch(e){}
+    applying = false;
+  }
+
+  function set(next){
+    next = next === 'voucher' ? 'voucher' : 'home';
+    var changed = screen !== next;
+    screen = next;
+    writeColor(changed);
+    requestAnimationFrame(function(){ writeColor(false); });
+    setTimeout(function(){ writeColor(false); }, 80);
+    setTimeout(function(){ writeColor(false); }, 240);
+  }
+
+  window.__yapeStatusV212 = { set:set, get:function(){ return screen; } };
+  window.addEventListener('message', function(ev){
+    var data = ev && ev.data;
+    if(data && data.type === 'yape-screen-theme') set(data.screen);
+  });
+
+  if(document.head){
+    new MutationObserver(function(){
+      var color = COLORS[screen] || COLORS.home;
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if(!meta || String(meta.getAttribute('content') || '').toLowerCase() !== color){
+        writeColor(false);
+      }
+    }).observe(document.head,{subtree:true,childList:true,attributes:true,attributeFilter:['content','media']});
+  }
+
+  set('home');
+})();</script>
+
+<!-- Controladores anteriores desactivados: competían entre sí y restauraban el Home. -->
 <!-- V210: Android - la barra nativa sigue la pantalla visible sin recolorear el comprobante -->
-<script id="yosi-android-status-v210-final">(function(){
+<script type="application/x-yape-disabled" id="yosi-android-status-v210-final">(function(){
   'use strict';
   if(!/Android/i.test(navigator.userAgent || '') || window.__yosiAndroidStatusV210Final) return;
   window.__yosiAndroidStatusV210Final = true;
@@ -369,7 +448,7 @@
 })();</script>
 
 <!-- V209: Android - la barra de estado usa el color real de cada pantalla -->
-<script id="yosi-android-status-color-sync-v209">(function(){
+<script type="application/x-yape-disabled" id="yosi-android-status-color-sync-v209">(function(){
   'use strict';
   if(!/Android/i.test(navigator.userAgent || '') || window.__yosiAndroidStatusColorSyncV209) return;
   window.__yosiAndroidStatusColorSyncV209 = true;
@@ -5766,6 +5845,11 @@ function setUploadState(state){
     const voucherView = document.getElementById(&quot;voucherView&quot;);
 
     function showView(v){
+      try{
+        var __statusScreen = (v &amp;&amp; (v.id === &quot;voucherView&quot; || v.id === &quot;rcvVoucher&quot;)) ? &quot;voucher&quot; : &quot;home&quot;;
+        if(window.top &amp;&amp; window.top.__yapeStatusV212) window.top.__yapeStatusV212.set(__statusScreen);
+        else if(window.parent &amp;&amp; window.parent !== window) window.parent.postMessage({type:&quot;yape-screen-theme&quot;,screen:__statusScreen},&quot;*&quot;);
+      }catch(e){}
       homeView.classList.add(&quot;hidden&quot;);
       perfilEditarView.classList.add(&quot;hidden&quot;);
       yapearView.classList.add(&quot;hidden&quot;);
@@ -7260,6 +7344,10 @@ window.__mostrarNombreCompletoTemporal = false;
     // ===========================================
 
 function goVoucher(payload){
+      try{
+        if(window.top &amp;&amp; window.top.__yapeStatusV212) window.top.__yapeStatusV212.set(&quot;voucher&quot;);
+        else if(window.parent &amp;&amp; window.parent !== window) window.parent.postMessage({type:&quot;yape-screen-theme&quot;,screen:&quot;voucher&quot;},&quot;*&quot;);
+      }catch(e){}
 
       /* V225 RECARGA: usa el MISMO voucher real que los yapeos.
          Este estado es temporal y se limpia automáticamente en cualquier voucher normal. */
@@ -13278,7 +13366,7 @@ body.yape-help-open .background-all > *:not(#yapeHelpPersonajeScreen){
   window.__yosiFooterSamePlaceTimer=setInterval(run,500);
 })();</script>
 
-<script id="fix-baucher-movimiento-touch-inmediato-v4">(function(){
+<script type="application/x-yape-disabled" id="fix-baucher-movimiento-touch-inmediato-v4">(function(){
   if(window.__fixBaucherMovTouchInmediatoV4) return;
   window.__fixBaucherMovTouchInmediatoV4 = true;
 
@@ -27538,7 +27626,7 @@ import { getFirestore, doc, getDoc, collection, query, where, getDocs, limit } f
 
 
 <style id="fix-baucher-top-retorno-home-v3">html.__baucherTopActivo,html.__baucherTopActivo body,body.__baucherTopActivo,body.__baucherTopActivo .stage{background:#4a1972 !important;background-color:#4a1972 !important;background-image:none !important;transition:none !important} html,body,.stage,#homeFrame,#newHomeFrame,#voucherView,#baucher-embed-wrap,#baucher-embed-frame{transition-property:none !important}</style>
-<script id="fix-baucher-top-retorno-home-v3-js">(function(){
+<script type="application/x-yape-disabled" id="fix-baucher-top-retorno-home-v3-js">(function(){
   var HOME_TOP = '#780699';
   var BAUCHER_TOP = '#4a1972';
   var current = null;
