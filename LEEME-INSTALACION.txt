@@ -1,0 +1,18 @@
+APP WEB INSTALABLE EN IPHONE Y ANDROID
+
+1. Sube todos estos archivos juntos al mismo directorio de tu sitio web.
+2. Conserva las carpetas assets y cualquier otro recurso que ya tengas en el servidor.
+3. El sitio debe abrir mediante HTTPS. GitHub Pages ya usa HTTPS.
+
+ANDROID (GOOGLE CHROME)
+- Abre la dirección del sitio.
+- Toca el menú de tres puntos.
+- Selecciona "Instalar aplicación" o "Agregar a pantalla principal".
+
+IPHONE (SAFARI)
+- Abre la dirección directamente en Safari.
+- Toca Compartir.
+- Selecciona "Agregar a inicio" y luego "Agregar".
+
+Si ya tenías una versión instalada, elimínala de la pantalla de inicio, vuelve a
+abrir el sitio y agrégala otra vez para renovar el ícono y la configuración.
