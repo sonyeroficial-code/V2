@@ -33,10 +33,11 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
-<meta name="yosi-build" content="biometria-perfil-v34-pwa-ios-android-status-v210-20260902"/>
+<meta name="yosi-build" content="biometria-perfil-v34-pwa-ios-android-status-v211-20260902"/>
 
-<link href="manifest.webmanifest" rel="manifest"/>
-<meta content="#780699" name="theme-color"/>
+<link href="manifest.webmanifest?v=status-v211-20260902" rel="manifest"/>
+<meta content="#780699" media="(prefers-color-scheme: light)" name="theme-color"/>
+<meta content="#780699" media="(prefers-color-scheme: dark)" name="theme-color"/>
 <meta content="yes" name="mobile-web-app-capable"/>
 <meta content="Yape" name="application-name"/>
 <meta content="yes" name="apple-mobile-web-app-capable"/>
@@ -65,8 +66,8 @@
   try{
     if(window.top !== window || !('serviceWorker' in navigator)) return;
 
-    var SW_URL = './service-worker.js?v=status-v210-20260902';
-    var UPDATE_KEY = 'yape_sw_last_update_status_v210';
+    var SW_URL = './service-worker.js?v=status-v211-20260902';
+    var UPDATE_KEY = 'yape_sw_last_update_status_v211';
     var UPDATE_EVERY_MS = 0;
 
     function warmShell(reg){

@@ -1,12 +1,13 @@
 'use strict';
 
-const CACHE_VERSION = 'yape-pwa-v1';
+const CACHE_VERSION = 'yape-pwa-status-v211-20260902';
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
   './',
   './index.html',
-  './manifest.webmanifest',
+  './index.html?v=status-v211-20260902',
+  './manifest.webmanifest?v=status-v211-20260902',
   './favicon-32.png',
   './icon-180.png',
   './icon-192.png',

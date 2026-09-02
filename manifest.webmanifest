@@ -5,7 +5,7 @@
   "description": "Aplicación web para dispositivos móviles.",
   "lang": "es-PE",
   "dir": "ltr",
-  "start_url": "./index.html",
+  "start_url": "./index.html?v=status-v211-20260902",
   "scope": "./",
   "display": "standalone",
   "display_override": [
@@ -14,7 +14,6 @@
   ],
   "orientation": "portrait-primary",
   "background_color": "#742284",
-  "theme_color": "#780699",
   "icons": [
     {
       "src": "./icon-192.png",
