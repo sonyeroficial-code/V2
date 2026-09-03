@@ -33,12 +33,11 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
-<meta name="yosi-build" content="android-status-color-un-meta-v246-20260903"/>
+<meta name="yosi-build" content="biometria-perfil-v34-misma-logica-responsive-setup-20260820"/>
 
-<link href="manifest.webmanifest?v=status-color-v246-20260903" rel="manifest"/>
-<meta content="#780699" id="app-theme-color" name="theme-color"/>
+<link href="manifest.webmanifest" rel="manifest"/>
+<meta content="#780699" name="theme-color"/>
 <meta content="yes" name="apple-mobile-web-app-capable"/>
-<meta content="yes" name="mobile-web-app-capable"/>
 <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
 <meta content="Yape" name="apple-mobile-web-app-title"/>
 <link href="icon-192.png" rel="apple-touch-icon"/>
@@ -62,9 +61,9 @@
   try{
     if(window.top !== window || !('serviceWorker' in navigator)) return;
 
-    var SW_URL = './service-worker.js?v=status-color-v246-20260903';
-    var UPDATE_KEY = 'yape_sw_last_update_status_color_v246';
-    var UPDATE_EVERY_MS = 0;
+    var SW_URL = './service-worker.js';
+    var UPDATE_KEY = 'yape_sw_last_update_v1';
+    var UPDATE_EVERY_MS = 6 * 60 * 60 * 1000;
 
     function warmShell(reg){
       try{
@@ -108,6 +107,171 @@
   }catch(e){ console.warn(e); }
 })();</script>
 
+<!-- V209: Android - la barra de estado usa el color real de cada pantalla -->
+<script id="yosi-android-status-color-sync-v209">(function(){
+  'use strict';
+  if(!/Android/i.test(navigator.userAgent || '') || window.__yosiAndroidStatusColorSyncV209) return;
+  window.__yosiAndroidStatusColorSyncV209 = true;
+
+  var FALLBACK = '#780699';
+  var lastApplied = '';
+  var queued = false;
+
+  function safe(fn, fallback){
+    try{ return fn(); }catch(e){ return fallback; }
+  }
+
+  function byteHex(value){
+    var n = Math.max(0, Math.min(255, Math.round(Number(value) || 0)));
+    return (n < 16 ? '0' : '') + n.toString(16);
+  }
+
+  function solidColor(value){
+    if(!value || value === 'transparent') return null;
+    var text = String(value).trim();
+    var hex = text.match(/#([0-9a-f]{6})(?:[0-9a-f]{2})?\b/i);
+    if(hex) return '#' + hex[1].toLowerCase();
+    var shortHex = text.match(/#([0-9a-f]{3})\b/i);
+    if(shortHex){
+      var h = shortHex[1].toLowerCase();
+      return '#' + h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    }
+    var rgb = text.match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:\s*[,\/]\s*([\d.]+%?))?\s*\)/i);
+    if(!rgb) return null;
+    var alpha = 1;
+    if(rgb[4] != null) alpha = /%$/.test(rgb[4]) ? parseFloat(rgb[4]) / 100 : parseFloat(rgb[4]);
+    if(!isFinite(alpha) || alpha < 0.82) return null;
+    return '#' + byteHex(rgb[1]) + byteHex(rgb[2]) + byteHex(rgb[3]);
+  }
+
+  function colorFromStyle(style){
+    if(!style) return null;
+    var image = style.backgroundImage || '';
+    if(image && image !== 'none'){
+      var gradientColor = solidColor(image);
+      if(gradientColor) return gradientColor;
+    }
+    return solidColor(style.backgroundColor);
+  }
+
+  function colorFromElement(el, win){
+    var node = el;
+    while(node && node.nodeType === 1){
+      var color = safe(function(){ return colorFromStyle(win.getComputedStyle(node)); }, null);
+      if(color) return color;
+      node = node.parentElement;
+    }
+    return null;
+  }
+
+  function sampleDocument(doc, x, y, depth){
+    if(!doc || depth > 7) return null;
+    var win = doc.defaultView;
+    if(!win) return null;
+    var width = safe(function(){ return doc.documentElement.clientWidth || win.innerWidth; }, 0);
+    var height = safe(function(){ return doc.documentElement.clientHeight || win.innerHeight; }, 0);
+    if(!width || !height) return null;
+    x = Math.max(1, Math.min(width - 1, x));
+    y = Math.max(1, Math.min(height - 1, y));
+
+    var el = safe(function(){ return doc.elementFromPoint(x, y); }, null);
+    if(!el) return null;
+
+    if(String(el.tagName || '').toLowerCase() === 'iframe'){
+      var rect = safe(function(){ return el.getBoundingClientRect(); }, null);
+      var child = safe(function(){ return el.contentDocument || (el.contentWindow && el.contentWindow.document); }, null);
+      if(rect && child){
+        var inner = sampleDocument(child, x - rect.left, y - rect.top, depth + 1);
+        if(inner) return inner;
+      }
+    }
+    return colorFromElement(el, win);
+  }
+
+  function visibleTopColor(){
+    var width = document.documentElement.clientWidth || window.innerWidth || 390;
+    var probes = [
+      [width * 0.50, 2], [width * 0.25, 2], [width * 0.75, 2],
+      [width * 0.50, 8], [width * 0.25, 8], [width * 0.75, 8],
+      [width * 0.50, 16]
+    ];
+    var counts = Object.create(null);
+    var order = [];
+    for(var i = 0; i < probes.length; i++){
+      var color = sampleDocument(document, probes[i][0], probes[i][1], 0);
+      if(!color) continue;
+      if(!counts[color]){ counts[color] = 0; order.push(color); }
+      counts[color]++;
+    }
+    var chosen = null;
+    var best = 0;
+    for(var j = 0; j < order.length; j++){
+      if(counts[order[j]] > best){ chosen = order[j]; best = counts[order[j]]; }
+    }
+    return chosen || lastApplied || FALLBACK;
+  }
+
+  function applyNativeWrapper(color){
+    try{
+      var capacitor = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.StatusBar;
+      if(capacitor && typeof capacitor.setBackgroundColor === 'function'){
+        var result = capacitor.setBackgroundColor({color:color});
+        if(result && typeof result.catch === 'function') result.catch(function(){});
+      }
+    }catch(e){}
+    try{
+      if(window.StatusBar && typeof window.StatusBar.backgroundColorByHexString === 'function'){
+        window.StatusBar.backgroundColorByHexString(color);
+      }
+    }catch(e){}
+  }
+
+  function apply(){
+    queued = false;
+    if(document.visibilityState === 'hidden') return;
+    var color = visibleTopColor();
+    var metas = document.querySelectorAll('meta[name="theme-color"]');
+    if(!metas.length){
+      var meta = document.createElement('meta');
+      meta.name = 'theme-color';
+      document.head.appendChild(meta);
+      metas = [meta];
+    }
+    for(var i = 0; i < metas.length; i++){
+      if(String(metas[i].getAttribute('content') || '').toLowerCase() !== color){
+        metas[i].setAttribute('content', color);
+      }
+    }
+    if(color !== lastApplied){
+      lastApplied = color;
+      applyNativeWrapper(color);
+    }
+  }
+
+  function schedule(){
+    if(queued) return;
+    queued = true;
+    (window.requestAnimationFrame || function(fn){ return setTimeout(fn, 16); })(apply);
+  }
+
+  if(document.head){
+    safe(function(){
+      new MutationObserver(schedule).observe(document.head, {
+        subtree:true,
+        childList:true,
+        attributes:true,
+        attributeFilter:['content']
+      });
+    });
+  }
+  document.addEventListener('DOMContentLoaded', schedule, {once:true});
+  document.addEventListener('visibilitychange', schedule, {passive:true});
+  window.addEventListener('pageshow', schedule, {passive:true});
+  window.addEventListener('resize', schedule, {passive:true});
+  window.addEventListener('orientationchange', schedule, {passive:true});
+  [0, 80, 220, 500, 1000, 1800, 3000].forEach(function(ms){ setTimeout(schedule, ms); });
+  setInterval(schedule, 300);
+})();</script>
 <style id="global-responsive-fix">:root{--app-vh:100dvh;--app-vw:100vw;--app-scale:1;--app-pad-x:clamp(10px,3.6vw,18px);--app-gap:clamp(8px,2.8vw,14px);--app-radius:clamp(16px,4vw,28px)} html{-webkit-text-size-adjust:100%;text-size-adjust:100%;overflow-x:hidden !important;background:#742284} body{width:100%;min-height:var(--app-vh);overflow-x:hidden !important} body,.stage,.device,.views,.screen,iframe{max-width:100vw !important} .stage,.device,.views,.screen{min-height:var(--app-vh)} img,video,canvas,svg{max-width:100%} input,textarea,select,button{font:inherit} *{min-width:0;word-wrap:break-word;overflow-wrap:anywhere} .screen{width:100%;padding-left:max(var(--app-pad-x),env(safe-area-inset-left)) !important;padding-right:max(var(--app-pad-x),env(safe-area-inset-right)) !important;padding-bottom:calc(env(safe-area-inset-bottom) + 6px) !important;gap:var(--app-gap) !important} .card,.sheet,.modal,.validate-modal,.netModalCard,.yNotifCard,.rcCard,.qrReg-card,.opCard{width:min(100%,100vw - 24px) !important;max-width:min(100%,520px) !important} .actions,.top,.bottom,.row,.chips,.tabs,.stories,.filters{max-width:100%} .actions,.chips,.tabs,.stories,.filters{overflow-x:auto;scrollbar-width:none} .actions::-webkit-scrollbar,.chips::-webkit-scrollbar,.tabs::-webkit-scrollbar,.stories::-webkit-scrollbar,.filters::-webkit-scrollbar{display:none} .keypad{gap:clamp(8px,2.2vw,12px) !important} .key{max-width:none !important} @media (max-width:430px){:root{--screenX:clamp(12px,3.8vw,16px);--screenY:clamp(10px,3vw,14px);--radiusCard:clamp(18px,5vw,24px);--radiusQr:clamp(12px,4vw,18px);--radiusKey:clamp(10px,3.2vw,12px)} .device{width:100vw !important;height:var(--app-vh) !important;border-radius:0 !important;box-shadow:none !important} .help-pill{padding:9px 13px !important;font-size:14px !important;gap:8px !important} .actions{justify-content:flex-start !important;padding-bottom:2px} .action{width:clamp(72px,23vw,88px) !important;flex:0 0 auto} .action .label{font-size:11.5px !important} .qr-box{width:clamp(138px,42vw,182px) !important;margin-top:30px !important} .title{font-size:clamp(19px,5vw,24px) !important} .forgot{font-size:14px !important}} @media (max-width:360px){:root{--app-pad-x:12px;--app-gap:8px} .screen{padding-top:calc(env(safe-area-inset-top) + 8px) !important} .qr-box{width:clamp(128px,40vw,160px) !important;margin-top:24px !important} .actions{margin-top:18px !important;gap:8px !important} .action{width:70px !important} .action .icon-wrap{width:44px !important;height:43px !important} .action .label{font-size:12px !important} .card{padding:12px 12px 8px !important} .key{height:clamp(38px,7vh,48px) !important;font-size:clamp(18px,5.5vw,24px) !important}} @media (max-height:740px){.screen{padding-top:calc(env(safe-area-inset-top) + 8px) !important;gap:8px !important} .qr-box{margin-top:24px !important} .actions{margin-top:14px !important} .card{padding-top:12px !important}} @media (max-height:680px){.qr-box{width:clamp(124px,38vw,152px) !important;margin-top:18px !important} .action .icon-wrap{width:42px !important;height:42px !important} .action .label{font-size:12px !important} .key{height:40px !important}}</style>
 <script id="global-responsive-fix-script">(function(){
   function setViewportVars(){
@@ -342,8 +506,12 @@
   var isStandalone=(navigator.standalone===true)||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);
   var keepWhiteUnderlay=isIOS&&isStandalone;
 
-  function paintRoot(color){
+  function metaTheme(color){
     try{
+      var metas=document.querySelectorAll('meta[name="theme-color"]');
+      if(!metas.length){var m=document.createElement('meta');m.name='theme-color';document.head.appendChild(m);metas=[m];}
+      for(var i=0;i<metas.length;i++) metas[i].setAttribute('content',color);
+
       /* En iPhone instalado no volver a pintar de morado el documento raíz:
          esa pintura era la franja de unos milisegundos bajo el iframe. */
       if(!keepWhiteUnderlay){
@@ -359,18 +527,16 @@
       baucherActivo=document.documentElement.classList.contains('__baucherTopActivo')||(document.body&&document.body.classList.contains('__baucherTopActivo'));
     }catch(e){}
     if(baucherActivo) return;
-    paintRoot(HOME);
+    metaTheme(HOME);
   }
 
-  paintRoot(HOME);
+  metaTheme(HOME);
   document.addEventListener('DOMContentLoaded',syncTheme,{once:true});
   window.addEventListener('pageshow',syncTheme);
-  /* Android usa el sincronizador global por pantalla; no fijar el Home encima
-     del color de las vistas secundarias. */
-  if(!/Android/i.test(ua)) setInterval(syncTheme,1200);
+  setInterval(syncTheme,1200);
   setTimeout(function(){try{window.__releaseBootSplash&&window.__releaseBootSplash('offline-lie-timeout');}catch(e){}},4800);
 })();</script>
-<style id="outer-voucher-home-color-final">#homeView,#newHomeFrame{background:#780699!important;background-image:linear-gradient(180deg,#780699 0%,#780699 100%)!important}</style>
+<style id="outer-voucher-home-color-final">#homeView,#homeFrame,#newHomeFrame{background:#780699!important;background-image:linear-gradient(180deg,#780699 0%,#780699 100%)!important}</style>
 <script id="outer-voucher-home-color-final-script">(function(){
   var ua=navigator.userAgent||'';
   var platform=navigator.platform||'';
@@ -381,15 +547,13 @@
   if(isIOS&&isStandalone) return;
   var css = 'background:#780699!important;background-image:linear-gradient(180deg,#780699 0%,#780699 100%)!important;';
   function paintOuter(){
-    /* Este código solo conserva el color de los elementos visuales del Home.
-       Antes pintaba también el iframe raíz y su html/body cada 500 ms, por lo
-       que anulaba el color de voucher y de cualquier otra pantalla. */
-    try{['homeView','newHomeFrame'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.cssText+=';'+css;});}catch(e){}
+    try{['homeView','homeFrame','newHomeFrame'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.cssText+=';'+css;});}catch(e){}
     try{
       var hf=document.getElementById('homeFrame');
       var d=hf&&(hf.contentDocument||(hf.contentWindow&&hf.contentWindow.document));
       if(d){
-        d.querySelectorAll('#homeView,.homehead,#newHomeFrame').forEach(function(el){el.style.cssText+=';'+css;});
+        [d.documentElement,d.body].forEach(function(el){if(el)el.style.cssText+=';'+css;});
+        d.querySelectorAll('.homehead,#newHomeFrame').forEach(function(el){el.style.cssText+=';'+css;});
         var nf=d.getElementById('newHomeFrame');
         var nd=nf&&(nf.contentDocument||(nf.contentWindow&&nf.contentWindow.document));
         if(nd){
@@ -498,6 +662,8 @@
       if(stage) stage.style.background=iosApp?APP:SPLASH;
       var pre=document.getElementById('preSplash');if(pre) pre.style.background=SPLASH;
       var splash=document.getElementById('__yapeSplash');if(splash) splash.style.background=SPLASH;
+      var metas=document.querySelectorAll('meta[name="theme-color"]');
+      for(var i=0;i<metas.length;i++) metas[i].setAttribute('content',SPLASH);
     }catch(e){}
   }
   apply();
@@ -524,18 +690,6 @@
   window.addEventListener('pageshow', function(){ setTimeout(recover, 180); }, {passive:true});
   setTimeout(recover, 4200);
 })();</script>
-
-<style id="color-unificado-todas-pantallas">
-/* Todas las pantallas usan el mismo fondo superior del Home */
-html, body, .stage, body.mode-app, body.mode-login {
-  background: radial-gradient(1200px 600px at 50% -10%,rgba(255,255,255,.14),rgba(255,255,255,0) 60%),
-              linear-gradient(180deg,#6A1B9A 0%,#7B1FA2 18%,#8E24AA 45%,#9C27B0 72%,#AB47BC 100%) !important;
-}
-#voucherView, #voucherView .voucherBody {
-  background: radial-gradient(1200px 600px at 50% -10%,rgba(255,255,255,.14),rgba(255,255,255,0) 60%),
-              linear-gradient(180deg,#6A1B9A 0%,#7B1FA2 18%,#8E24AA 45%,#9C27B0 72%,#AB47BC 100%) !important;
-}
-</style>
 </head>
 <body class="mode-login">
 
@@ -12867,8 +13021,6 @@ body.yape-help-open .background-all > *:not(#yapeHelpPersonajeScreen){
   function setMeta(doc, color){
     try{
       if(!doc || !doc.head) return;
-      /* Android: ningún documento interno crea metas; el único dueño es V246. */
-      if(/Android/i.test(navigator.userAgent || '')) return;
       var metas = doc.querySelectorAll('meta[name="theme-color"]');
       if(!metas.length){
         var m = doc.createElement('meta');
@@ -12892,6 +13044,7 @@ body.yape-help-open .background-all > *:not(#yapeHelpPersonajeScreen){
 
   function paintOuter(color){
     try{
+      setMeta(document, color);
       document.documentElement.classList.toggle('__baucherTopActivo', color === BAUCHER_TOP);
       if(document.body) document.body.classList.toggle('__baucherTopActivo', color === BAUCHER_TOP);
       setBg(document.documentElement, color);
@@ -27111,9 +27264,6 @@ import { getFirestore, doc, getDoc, collection, query, where, getDocs, limit } f
 
 <style id="fix-baucher-top-retorno-home-v3">html.__baucherTopActivo,html.__baucherTopActivo body,body.__baucherTopActivo,body.__baucherTopActivo .stage{background:#4a1972 !important;background-color:#4a1972 !important;background-image:none !important;transition:none !important} html,body,.stage,#homeFrame,#newHomeFrame,#voucherView,#baucher-embed-wrap,#baucher-embed-frame{transition-property:none !important}</style>
 <script id="fix-baucher-top-retorno-home-v3-js">(function(){
-  /* En Android el color superior lo decide el sincronizador global de cada
-     pantalla. Este parche antiguo solo diferenciaba Home/voucher. */
-  if(/Android/i.test(navigator.userAgent || '')) return;
   var HOME_TOP = '#780699';
   var BAUCHER_TOP = '#4a1972';
   var current = null;
@@ -27215,22 +27365,16 @@ import { getFirestore, doc, getDoc, collection, query, where, getDocs, limit } f
   }
 
   function apply(active){
-    var wanted = active ? BAUCHER_TOP : HOME_TOP;
-    var metaIsCorrect = false;
-    try{
-      var currentMeta = document.querySelector('meta[name="theme-color"]');
-      metaIsCorrect = !!currentMeta && String(currentMeta.getAttribute('content') || '').toLowerCase() === wanted;
-    }catch(e){}
-    if(active === current && metaIsCorrect) return;
+    if(active === current) return;
     current = active;
     try{
       document.documentElement.classList.toggle('__baucherTopActivo', active);
       if(document.body) document.body.classList.toggle('__baucherTopActivo', active);
-      metaTheme(document, wanted);
-      setBg(document.documentElement, wanted);
-      if(document.body) setBg(document.body, wanted);
+      metaTheme(document, active ? BAUCHER_TOP : HOME_TOP);
+      setBg(document.documentElement, active ? BAUCHER_TOP : HOME_TOP);
+      if(document.body) setBg(document.body, active ? BAUCHER_TOP : HOME_TOP);
       var stage = document.querySelector('.stage');
-      if(stage) setBg(stage, wanted);
+      if(stage) setBg(stage, active ? BAUCHER_TOP : HOME_TOP);
     }catch(e){}
     if(!active) paintHomeOnly();
   }
@@ -27394,16 +27538,6 @@ import { getFirestore, doc, getDoc, collection, query, where, getDocs, limit } f
     document.addEventListener(ev, function(){ hookHomeDoc(); queue(); }, true);
   });
   try{ new MutationObserver(function(){ hookHomeDoc(); queue(); }).observe(document.documentElement, {childList:true, subtree:true, attributes:true, attributeFilter:['class','style','aria-hidden']}); }catch(e){}
-  try{
-    if(document.head){
-      new MutationObserver(function(){ queue(); }).observe(document.head, {
-        childList:true,
-        subtree:true,
-        attributes:true,
-        attributeFilter:['content']
-      });
-    }
-  }catch(e){}
 })();</script>
 
 <style id="share-icon-transparent-integrated">#voucherView .share img,#voucherView .share-icon,.share .share-icon,.compartir img{background:transparent !important;border:0 !important;box-shadow:none !important;object-fit:contain !important;mix-blend-mode:normal !important}</style>
@@ -35987,8 +36121,6 @@ body.yosi-validando-suave #mModal{
   function setMeta(doc, color){
     try{
       if(!doc || !doc.head) return;
-      /* Android: ningún documento interno crea metas; el único dueño es V246. */
-      if(/Android/i.test(navigator.userAgent || '')) return;
       var metas = doc.querySelectorAll('meta[name="theme-color"]');
       if(!metas.length){ var m = doc.createElement('meta'); m.name = 'theme-color'; doc.head.appendChild(m); metas = [m]; }
       for(var i=0;i<metas.length;i++) metas[i].setAttribute('content', color);
@@ -36006,6 +36138,7 @@ body.yosi-validando-suave #mModal{
   }
   function paintOuter(color){
     try{
+      setMeta(document, color);
       bg(document.documentElement, color);
       if(document.body) bg(document.body, color);
       var stage = document.querySelector('.stage');
@@ -36429,11 +36562,9 @@ body.yosi-validando-suave #mModal{
   function paintBaucher(ctrlWin){
     try{
       var d = ctrlWin.document;
-      if(!/Android/i.test(navigator.userAgent || '')){
-        var meta = d.querySelector('meta[name="theme-color"]');
-        if(!meta){ meta = d.createElement('meta'); meta.name = 'theme-color'; (d.head || d.documentElement).appendChild(meta); }
-        meta.setAttribute('content', BAUCHER_TOP);
-      }
+      var meta = d.querySelector('meta[name="theme-color"]');
+      if(!meta){ meta = d.createElement('meta'); meta.name = 'theme-color'; (d.head || d.documentElement).appendChild(meta); }
+      meta.setAttribute('content', BAUCHER_TOP);
       d.documentElement.style.setProperty('background', BAUCHER_TOP, 'important');
       if(d.body) d.body.style.setProperty('background', BAUCHER_TOP, 'important');
       var stage = d.querySelector('.stage');
@@ -40960,19 +41091,7 @@ html.yosi-ios-standalone-full-v13 .stage > iframe{
   if(window.__yosiPagarServiciosV48Installed) return;
   window.__yosiPagarServiciosV48Installed = true;
 
-  var FRAME_HTML = "<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover\"><title>Pagar servicios</title><style>*{box-sizing:border-box;font-family:system-ui,-apple-system,\"Segoe UI\",Roboto,Arial,sans-serif;-webkit-tap-highlight-color:transparent}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#742284}button,input{font:inherit}.father{background:#fff;height:100dvh;width:100vw;border-radius:5vw 5vw 0 0;overflow:hidden;animation:none}@keyframes f{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}.head{height:15vw;display:flex;align-items:center;background:#fff;border-bottom:.25vw solid #f0f0f0}.head div{width:16vw;height:15vw;background-position:center;background-repeat:no-repeat;background-size:4.2vw;transition:.15s}.head div:first-child{background-image:url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAqCAYAAACk2+sZAAABCGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGA8wQAELAYMDLl5JUVB7k4KEZFRCuwPGBiBEAwSk4sLGHADoKpv1yBqL+viUYcLcKakFicD6Q9ArFIEtBxopAiQLZIOYWuA2EkQtg2IXV5SUAJkB4DYRSFBzkB2CpCtkY7ETkJiJxcUgdT3ANk2uTmlyQh3M/Ck5oUGA2kOIJZhKGYIYnBncAL5H6IkfxEDg8VXBgbmCQixpJkMDNtbGRgkbiHEVBYwMPC3MDBsO48QQ4RJQWJRIliIBYiZ0tIYGD4tZ2DgjWRgEL7AwMAVDQsIHG5TALvNnSEfCNMZchhSgSKeDHkMyQx6QJYRgwGDIYMZAKbWPz9HbOBQAAADBElEQVR4nMWYPWhUQRCAvxPB83LJaVBBFCQYBQtFhICNRQrFn0KjiGBlqUK0slC0iYqiWCm2gk1ENCoo/lQpbBRFUEhh/EljYQySk/POHwSL3b2bvMy8c98dOHDse7Pz9nuzM7s793KHBo+RQfLAjwj7AlAVLXOyUBVowf+CLEv0VxMtczNANW+riftPzQbJ4nHaFBdwL9YPPAeOir6SNMzicZAiUBHAqv8NAae8vg/oAi4BZflw1hgjoNCY6l0CGmSI2aFoCZyUA8AdRX9aM9bAHRmgm4Frin4cuCDu82ng79IgIUXlegB4oti+B1YzMyT1xLSmumDoZTJVgN3AiGI3AfQC841xTLBMBu3hKi6Rbit9Y0APsBioYcyeBZZrtebbvBhkAD2RfgHb/fUXZay6xKzjMMBO9OkFmNdkjG7gK+gem3HBLZm7Rl8OWOKvteldFKAWuKboANajL5k/AjrpdWF2ghPdwBRi20zbQOTS6QFeGXbLfTvJ7NUQnAie1rdNCyz34Q3AB8OuD33rbCoWOMSoF3hp2GwBXiTA/yxWVk8Ba4HXRv864KO47wK+xYAtjxcCj42+fg+VnkZB08D7gKWK/iIwajxTMvRR4C5D/4CZiSelTMTJZoGvGvpR3BEYRL5gHneytQSuAJuMvhFctsPM2MaUu6nr+CmwzegfB1b466jYNgNXPPwRsNGwmQDWkCjiWgWHgx7gGW7dajKWuC+qVhHg5Nb3Bnfwa/LWtyUidrGYKvMecFzRr8IlWZmIeMeWt+eBI4q+E3hHRLzTwPLt5XF3Gd3zlcD9doDl28uYd+A8P6E8swO46a+tErkp2JKwO50DTir9e4FbzcZu9S/MWeCgot+DO1Cg4fmCdoDlYNeBQcXmMPCQxlb6E1FIZgXnfDuNq6uuoCfcVg/H29ULyazgZAlcxCVc8i9qgEMbprpEo2rs9G3Ysc7gplhKGRea6VbBZVydDPA70VcAbgD7gc/AMO4InXVkZv0UETzWPsJUPXA4bYB2fhGIkv8G/gvOjpIqERBkiQAAAABJRU5ErkJggg==\")}.head div:last-child{background-image:url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACIAAAAiCAYAAAA6RwvCAAABCGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGA8wQAELAYMDLl5JUVB7k4KEZFRCuwPGBiBEAwSk4sLGHADoKpv1yBqL+viUYcLcKakFicD6Q9ArFIEtBxopAiQLZIOYWuA2EkQtg2IXV5SUAJkB4DYRSFBzkB2CpCtkY7ETkJiJxcUgdT3ANk2uTmlyQh3M/Ck5oUGA2kOIJZhKGYIYnBncAL5H6IkfxEDg8VXBgbmCQixpJkMDNtbGRgkbiHEVBYwMPC3MDBsO48QQ4RJQWJRIliIBYiZ0tIYGD4tZ2DgjWRgEL7AwMAVDQsIHG5TALvNnSEfCNMZchhSgSKeDHkMyQx6QJYRgwGDIYMZAKbWPz9HbOBQAAADdElEQVR4nK2XzUvUQRjHP2bg7qa7i1LhxTxliWESBR0s6xIdgsrSrKBDdOiNIqg/IfBUFF0SLALBIrKgS10qiSKSkiKsU0kv9ILh+rbbIeowM+7ss/O4P8HvZZ55Zn7PfOeZZ555fmVHT57FQyUwJfp/gSwLA2k/DfwBsovERDcp6fUXioRvP23bcWffJxK37WUgA1zF7GCh0Q18By4CMbe2TyQLXAFO2P4RYFAxFlP0S2xbRX5jPq4D54AK4BTQ49aWR3NM9FuAnLKoj2rbTlsykxQf6U3gkNAdtG1KEpkJLFIBPLJyjW0lud+ePB2wcRvoCOgdMpJImzKxDXOuY0Iv3e/33fH1Ae2K3SYnSCIvybtLYjkwZOWUbZ3746KfwHjtMbBfsbcXeOcILxaDCcwOPgNPAh+vw1y5tNA7AjFLYAb4ASxTSGzAbDpO4PpCPkYGgW2KkRRmJyG42Bmdg0S7JQFQ7pSSiI+HwC5lrBEYVsbeA3XK2FbgjpXjmASXKkUE4C7GjSE0AyNC9wloUOY3Aq+9vjvOTBQiYNwo77/DKuCZld8CK5R5+4CvmPgKQgYrFD9MADeAFxi3S2wE/mkLYDz3Zo5xIOwRScI9gB+AM6UMCnRFIaERcXC5YcLTXQA2RyTRBPRHnFtExH9tywljEOgsYXcP+hWPRGRKkZNiXncJu+dFPz1fIhr84xkF6kvMXwl89Prj8yGi1Rg+RtCTlUQ95paVKq5ikkiOsAsdwW+YvBHCFkXfgIkVF/ihzeYQ9UiMQhe6jxKYB7BWWWwn5pXtUsbrgAdWlrHm1shIj0imAJeATcoiLcA9K/cD65V5rRiP/hT62YQqgzXpsYwDt4ADivEdFD58CUy9onmmFnhlZRc3szdTVvETGE8kgGuY4iWEVuC+9x3kS4h+9KTXgjl+mb0LiPjFbg960uoEnirfOVKDwGHl+xSBtB/KIwPo5d12zHH58G9ClnwZ2Yt+TGsoLAmKiPRhbkEIq4HnAb0M8oxHcK4AXov5xQgS0TyxG/jiLRIFjuAQ+jF1AEtDREJoxhxXUYApCGXSXkyghvALiEkiMkMeJ2I94UESdgE8jPGsj9O2zfkVWiUmQ5YFjCcpfPiiwFV6/q0aUOzX+B4Jud65OSqJqhL2JJy3xnwiCU9OEq5dS2FS0acVEs5b1f8BRiOtQi4eJqkAAAAASUVORK5CYII=\")}.head div:active{transform:scale(.9);opacity:.8}.head h3{width:76vw;margin:0;font-size:5vw;font-weight:600;color:#212e41}.form{width:90%;padding:1vh;margin:auto}.form h3{margin:3.5vw 0 1.8vw;font-size:3.6vw;font-weight:500;color:#000}.form h3:first-child{margin-top:0}input{width:100%;height:5vh;padding:0 4vw;font-size:4vw;border-radius:3vw;border:.35vw solid #e6e7ea;background:#fafafa;color:#1f2a37;transition:.2s}input::placeholder{color:#9aa4b2}input:focus{outline:0;border-color:#b04ece;background:#fff;box-shadow:0 0 0 .35vw #b04ece40}.footer{position:fixed;bottom:0;width:100vw;padding:6vw 5vw calc(env(safe-area-inset-bottom,0px) + 4vw);background:linear-gradient(180deg,rgba(255,255,255,0),#fff 34%,#fff 100%);backdrop-filter:none;-webkit-backdrop-filter:none;transform:translateZ(0)}button{width:100%;padding:3.6vw 0;font-size:4.3vw;font-weight:600;border:0;border-radius:3vw;transition:.15s}.yapear{background:linear-gradient(135deg,#24c0b5,#00a692);color:#fff;box-shadow:0 10px 24px #00a69259}.yapear:not(:disabled):active{transform:scale(.97);box-shadow:0 6px 16px #00a69273}.yapear:disabled{background:#f1f2f4;color:#b0b6be;box-shadow:none}\n.load{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#0008;z-index:99}\n.load.on{display:flex}\n.loadbox{width:70vw;height:30vw;background:#fff;border-radius:3vw;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5vw;box-shadow:0 10px 35px #0002}\n.spin{width:9vw;height:9vw;border:1.1vw solid #28c1bb;border-right-color:transparent;border-bottom-color:transparent;border-radius:50%;animation:sp .8s linear infinite}\n.loadbox strong{font-size:4.7vw;color:#050505;font-weight:700}\n@keyframes sp{to{transform:rotate(360deg)}}\n@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}\nhtml,body,*{\n  -webkit-user-select:none!important;\n  user-select:none!important;\n  -webkit-touch-callout:none!important;\n}\n</style>
-<style id="unificar-fondo-todas-pantallas-v2">
-html,body,.stage,.views,.view,#homeView,#voucherView,#baucher-embed-wrap,#baucher-embed-frame,.rcvOverlay{
-  background:linear-gradient(180deg,#742284 0%,#6A1B9A 45%,#8E24AA 100%) !important;
-}
-#voucherView .voucherBody{
-  background:transparent !important;
-}
-#voucherView #baucher-embed-wrap,#voucherView #baucher-embed-frame{
-  background:linear-gradient(180deg,#742284 0%,#6A1B9A 45%,#8E24AA 100%) !important;
-}
-</style>
-</head><body><div class=\"father\"><div class=\"head\"><div id=\"b\" aria-label=\"Volver\"></div><h3>Pagar servicios</h3><div id=\"c\" aria-label=\"Cerrar\"></div></div><div class=\"form\"><h3>Empresa</h3><input id=\"e\" placeholder=\"Claro\"><h3>Monto</h3><input id=\"m\" placeholder=\"500\" type=\"number\"><h3>Servicio</h3><input id=\"s\" placeholder=\"Línea postpago\"><h3>Código de cliente</h3><input id=\"cc\" placeholder=\"999888777\"><h3>Titular</h3><input id=\"t\" placeholder=\"Sonyer Bogani\"></div><div class=\"footer\"><button id=\"y\" class=\"yapear\" disabled>Yapear</button></div></div><div id=\"load\" class=\"load\"><div class=\"loadbox\"><div class=\"spin\"></div><strong>Yapeando...</strong></div></div><script>(()=>{const $=id=>document.getElementById(id),m=$('m'),y=$('y'),l=$('load'),v=()=>{try{if(parent&&typeof parent.__closePagarServiciosV48==='function'){parent.__closePagarServiciosV48();return}}catch(e){}try{parent.postMessage({type:'yosi_pagar_servicios_v48_close'},'*')}catch(e){}};m.oninput=()=>y.disabled=!(+m.value>0);$('b').onclick=$('c').onclick=v;y.onclick=()=>{l.classList.add('on');y.disabled=true;const d={nombre:$('e').value,monto:+m.value,servicio:$('s').value,codigoCliente:$('cc').value,titular:$('t').value};dispatchEvent(new CustomEvent('pagar-servicios:yapear',{detail:d}));try{parent.postMessage({type:'yosi_pagar_servicios_v48_yapear',detail:d},'*')}catch(e){}window.onPagarServiciosYapear?.(d)}})()\ndocument.addEventListener('selectstart',e=>e.preventDefault());\ndocument.addEventListener('contextmenu',e=>e.preventDefault());\n<\/script></body></html>";
+  var FRAME_HTML = "<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover\"><title>Pagar servicios</title><style>*{box-sizing:border-box;font-family:system-ui,-apple-system,\"Segoe UI\",Roboto,Arial,sans-serif;-webkit-tap-highlight-color:transparent}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#742284}button,input{font:inherit}.father{background:#fff;height:100dvh;width:100vw;border-radius:5vw 5vw 0 0;overflow:hidden;animation:none}@keyframes f{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}.head{height:15vw;display:flex;align-items:center;background:#fff;border-bottom:.25vw solid #f0f0f0}.head div{width:16vw;height:15vw;background-position:center;background-repeat:no-repeat;background-size:4.2vw;transition:.15s}.head div:first-child{background-image:url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAqCAYAAACk2+sZAAABCGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGA8wQAELAYMDLl5JUVB7k4KEZFRCuwPGBiBEAwSk4sLGHADoKpv1yBqL+viUYcLcKakFicD6Q9ArFIEtBxopAiQLZIOYWuA2EkQtg2IXV5SUAJkB4DYRSFBzkB2CpCtkY7ETkJiJxcUgdT3ANk2uTmlyQh3M/Ck5oUGA2kOIJZhKGYIYnBncAL5H6IkfxEDg8VXBgbmCQixpJkMDNtbGRgkbiHEVBYwMPC3MDBsO48QQ4RJQWJRIliIBYiZ0tIYGD4tZ2DgjWRgEL7AwMAVDQsIHG5TALvNnSEfCNMZchhSgSKeDHkMyQx6QJYRgwGDIYMZAKbWPz9HbOBQAAADBElEQVR4nMWYPWhUQRCAvxPB83LJaVBBFCQYBQtFhICNRQrFn0KjiGBlqUK0slC0iYqiWCm2gk1ENCoo/lQpbBRFUEhh/EljYQySk/POHwSL3b2bvMy8c98dOHDse7Pz9nuzM7s793KHBo+RQfLAjwj7AlAVLXOyUBVowf+CLEv0VxMtczNANW+riftPzQbJ4nHaFBdwL9YPPAeOir6SNMzicZAiUBHAqv8NAae8vg/oAi4BZflw1hgjoNCY6l0CGmSI2aFoCZyUA8AdRX9aM9bAHRmgm4Frin4cuCDu82ng79IgIUXlegB4oti+B1YzMyT1xLSmumDoZTJVgN3AiGI3AfQC841xTLBMBu3hKi6Rbit9Y0APsBioYcyeBZZrtebbvBhkAD2RfgHb/fUXZay6xKzjMMBO9OkFmNdkjG7gK+gem3HBLZm7Rl8OWOKvteldFKAWuKboANajL5k/AjrpdWF2ghPdwBRi20zbQOTS6QFeGXbLfTvJ7NUQnAie1rdNCyz34Q3AB8OuD33rbCoWOMSoF3hp2GwBXiTA/yxWVk8Ba4HXRv864KO47wK+xYAtjxcCj42+fg+VnkZB08D7gKWK/iIwajxTMvRR4C5D/4CZiSelTMTJZoGvGvpR3BEYRL5gHneytQSuAJuMvhFctsPM2MaUu6nr+CmwzegfB1b466jYNgNXPPwRsNGwmQDWkCjiWgWHgx7gGW7dajKWuC+qVhHg5Nb3Bnfwa/LWtyUidrGYKvMecFzRr8IlWZmIeMeWt+eBI4q+E3hHRLzTwPLt5XF3Gd3zlcD9doDl28uYd+A8P6E8swO46a+tErkp2JKwO50DTir9e4FbzcZu9S/MWeCgot+DO1Cg4fmCdoDlYNeBQcXmMPCQxlb6E1FIZgXnfDuNq6uuoCfcVg/H29ULyazgZAlcxCVc8i9qgEMbprpEo2rs9G3Ysc7gplhKGRea6VbBZVydDPA70VcAbgD7gc/AMO4InXVkZv0UETzWPsJUPXA4bYB2fhGIkv8G/gvOjpIqERBkiQAAAABJRU5ErkJggg==\")}.head div:last-child{background-image:url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACIAAAAiCAYAAAA6RwvCAAABCGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGA8wQAELAYMDLl5JUVB7k4KEZFRCuwPGBiBEAwSk4sLGHADoKpv1yBqL+viUYcLcKakFicD6Q9ArFIEtBxopAiQLZIOYWuA2EkQtg2IXV5SUAJkB4DYRSFBzkB2CpCtkY7ETkJiJxcUgdT3ANk2uTmlyQh3M/Ck5oUGA2kOIJZhKGYIYnBncAL5H6IkfxEDg8VXBgbmCQixpJkMDNtbGRgkbiHEVBYwMPC3MDBsO48QQ4RJQWJRIliIBYiZ0tIYGD4tZ2DgjWRgEL7AwMAVDQsIHG5TALvNnSEfCNMZchhSgSKeDHkMyQx6QJYRgwGDIYMZAKbWPz9HbOBQAAADdElEQVR4nK2XzUvUQRjHP2bg7qa7i1LhxTxliWESBR0s6xIdgsrSrKBDdOiNIqg/IfBUFF0SLALBIrKgS10qiSKSkiKsU0kv9ILh+rbbIeowM+7ss/O4P8HvZZ55Zn7PfOeZZ555fmVHT57FQyUwJfp/gSwLA2k/DfwBsovERDcp6fUXioRvP23bcWffJxK37WUgA1zF7GCh0Q18By4CMbe2TyQLXAFO2P4RYFAxFlP0S2xbRX5jPq4D54AK4BTQ49aWR3NM9FuAnLKoj2rbTlsykxQf6U3gkNAdtG1KEpkJLFIBPLJyjW0lud+ePB2wcRvoCOgdMpJImzKxDXOuY0Iv3e/33fH1Ae2K3SYnSCIvybtLYjkwZOWUbZ3746KfwHjtMbBfsbcXeOcILxaDCcwOPgNPAh+vw1y5tNA7AjFLYAb4ASxTSGzAbDpO4PpCPkYGgW2KkRRmJyG42Bmdg0S7JQFQ7pSSiI+HwC5lrBEYVsbeA3XK2FbgjpXjmASXKkUE4C7GjSE0AyNC9wloUOY3Aq+9vjvOTBQiYNwo77/DKuCZld8CK5R5+4CvmPgKQgYrFD9MADeAFxi3S2wE/mkLYDz3Zo5xIOwRScI9gB+AM6UMCnRFIaERcXC5YcLTXQA2RyTRBPRHnFtExH9tywljEOgsYXcP+hWPRGRKkZNiXncJu+dFPz1fIhr84xkF6kvMXwl89Prj8yGi1Rg+RtCTlUQ95paVKq5ikkiOsAsdwW+YvBHCFkXfgIkVF/ihzeYQ9UiMQhe6jxKYB7BWWWwn5pXtUsbrgAdWlrHm1shIj0imAJeATcoiLcA9K/cD65V5rRiP/hT62YQqgzXpsYwDt4ADivEdFD58CUy9onmmFnhlZRc3szdTVvETGE8kgGuY4iWEVuC+9x3kS4h+9KTXgjl+mb0LiPjFbg960uoEnirfOVKDwGHl+xSBtB/KIwPo5d12zHH58G9ClnwZ2Yt+TGsoLAmKiPRhbkEIq4HnAb0M8oxHcK4AXov5xQgS0TyxG/jiLRIFjuAQ+jF1AEtDREJoxhxXUYApCGXSXkyghvALiEkiMkMeJ2I94UESdgE8jPGsj9O2zfkVWiUmQ5YFjCcpfPiiwFV6/q0aUOzX+B4Jud65OSqJqhL2JJy3xnwiCU9OEq5dS2FS0acVEs5b1f8BRiOtQi4eJqkAAAAASUVORK5CYII=\")}.head div:active{transform:scale(.9);opacity:.8}.head h3{width:76vw;margin:0;font-size:5vw;font-weight:600;color:#212e41}.form{width:90%;padding:1vh;margin:auto}.form h3{margin:3.5vw 0 1.8vw;font-size:3.6vw;font-weight:500;color:#000}.form h3:first-child{margin-top:0}input{width:100%;height:5vh;padding:0 4vw;font-size:4vw;border-radius:3vw;border:.35vw solid #e6e7ea;background:#fafafa;color:#1f2a37;transition:.2s}input::placeholder{color:#9aa4b2}input:focus{outline:0;border-color:#b04ece;background:#fff;box-shadow:0 0 0 .35vw #b04ece40}.footer{position:fixed;bottom:0;width:100vw;padding:6vw 5vw calc(env(safe-area-inset-bottom,0px) + 4vw);background:linear-gradient(180deg,rgba(255,255,255,0),#fff 34%,#fff 100%);backdrop-filter:none;-webkit-backdrop-filter:none;transform:translateZ(0)}button{width:100%;padding:3.6vw 0;font-size:4.3vw;font-weight:600;border:0;border-radius:3vw;transition:.15s}.yapear{background:linear-gradient(135deg,#24c0b5,#00a692);color:#fff;box-shadow:0 10px 24px #00a69259}.yapear:not(:disabled):active{transform:scale(.97);box-shadow:0 6px 16px #00a69273}.yapear:disabled{background:#f1f2f4;color:#b0b6be;box-shadow:none}\n.load{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#0008;z-index:99}\n.load.on{display:flex}\n.loadbox{width:70vw;height:30vw;background:#fff;border-radius:3vw;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5vw;box-shadow:0 10px 35px #0002}\n.spin{width:9vw;height:9vw;border:1.1vw solid #28c1bb;border-right-color:transparent;border-bottom-color:transparent;border-radius:50%;animation:sp .8s linear infinite}\n.loadbox strong{font-size:4.7vw;color:#050505;font-weight:700}\n@keyframes sp{to{transform:rotate(360deg)}}\n@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}\nhtml,body,*{\n  -webkit-user-select:none!important;\n  user-select:none!important;\n  -webkit-touch-callout:none!important;\n}\n</style></head><body><div class=\"father\"><div class=\"head\"><div id=\"b\" aria-label=\"Volver\"></div><h3>Pagar servicios</h3><div id=\"c\" aria-label=\"Cerrar\"></div></div><div class=\"form\"><h3>Empresa</h3><input id=\"e\" placeholder=\"Claro\"><h3>Monto</h3><input id=\"m\" placeholder=\"500\" type=\"number\"><h3>Servicio</h3><input id=\"s\" placeholder=\"Línea postpago\"><h3>Código de cliente</h3><input id=\"cc\" placeholder=\"999888777\"><h3>Titular</h3><input id=\"t\" placeholder=\"Sonyer Bogani\"></div><div class=\"footer\"><button id=\"y\" class=\"yapear\" disabled>Yapear</button></div></div><div id=\"load\" class=\"load\"><div class=\"loadbox\"><div class=\"spin\"></div><strong>Yapeando...</strong></div></div><script>(()=>{const $=id=>document.getElementById(id),m=$('m'),y=$('y'),l=$('load'),v=()=>{try{if(parent&&typeof parent.__closePagarServiciosV48==='function'){parent.__closePagarServiciosV48();return}}catch(e){}try{parent.postMessage({type:'yosi_pagar_servicios_v48_close'},'*')}catch(e){}};m.oninput=()=>y.disabled=!(+m.value>0);$('b').onclick=$('c').onclick=v;y.onclick=()=>{l.classList.add('on');y.disabled=true;const d={nombre:$('e').value,monto:+m.value,servicio:$('s').value,codigoCliente:$('cc').value,titular:$('t').value};dispatchEvent(new CustomEvent('pagar-servicios:yapear',{detail:d}));try{parent.postMessage({type:'yosi_pagar_servicios_v48_yapear',detail:d},'*')}catch(e){}window.onPagarServiciosYapear?.(d)}})()\ndocument.addEventListener('selectstart',e=>e.preventDefault());\ndocument.addEventListener('contextmenu',e=>e.preventDefault());\n<\/script></body></html>";
   var host = null, frame = null;
   var frameReady = false;
   var pendingReveal = false;
@@ -41437,6 +41556,7 @@ html,body,.stage,.views,.view,#homeView,#voucherView,#baucher-embed-wrap,#bauche
 <!-- V78: HOME morado actualizado para igualar la segunda referencia (#780699) -->
 <style id="yosi-home-purple-v78-final">
   body.mode-app #homeView,
+  body.mode-app #homeFrame,
   body.mode-app #newHomeFrame {
     background:#780699 !important;
     background-image:none !important;
@@ -41496,8 +41616,14 @@ html,body,.stage,.views,.view,#homeView,#voucherView,#baucher-embed-wrap,#bauche
   }
 
   function run(){
-    /* El iframe exterior no pertenece visualmente al Home: contiene también
-       voucher y las demás vistas. Su fondo lo controla el sincronizador. */
+    try{
+      var hf=document.getElementById('homeFrame');
+      if(hf) setBg(hf, SOLID);
+      if(document.body && document.body.classList.contains('mode-app')){
+        var meta=document.querySelector('meta[name="theme-color"]');
+        if(meta) meta.setAttribute('content',HOME);
+      }
+    }catch(e){}
     patchDoc(document,0);
   }
 
@@ -45002,377 +45128,217 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
   setInterval(scan, 900);
 })();</script>
 
-<!-- V246: un solo meta superior + recorrido continuo de iframe en Android -->
-<script id="yosi-android-screen-status-color-v246">(function(){
+<!-- ================================================================
+     FIX FINAL ANDROID: la barra de estado toma el color del BAUCHER
+     Home    -> #780699
+     Baucher -> #4a1972
+     Este bloque va AL FINAL para ganar a los parches anteriores.
+================================================================= -->
+<style id="yosi-android-baucher-status-final-v1">
+html.__yosiAndroidBaucherStatus,
+html.__yosiAndroidBaucherStatus body,
+html.__yosiAndroidBaucherStatus body .stage{
+  background:#4a1972 !important;
+  background-color:#4a1972 !important;
+  background-image:none !important;
+}
+</style>
+<script id="yosi-android-baucher-status-final-v1-js">
+(function(){
   'use strict';
-  if(!/Android/i.test(navigator.userAgent || '') || window.__yosiAndroidScreenStatusColorV246) return;
-  window.__yosiAndroidScreenStatusColorV246 = true;
+  if(window.__yosiAndroidBaucherStatusFinalV1) return;
+  window.__yosiAndroidBaucherStatusFinalV1 = true;
 
   var HOME = '#780699';
+  var BAUCHER = '#4a1972';
+  var isAndroid = /Android/i.test(navigator.userAgent || '');
   var lastColor = '';
-  var scheduled = false;
+  var lastVoucher = null;
+  var timer = 0;
 
   function safe(fn, fallback){
-    try{ return fn(); }catch(e){ return fallback; }
+    try { return fn(); } catch(e) { return fallback; }
   }
 
-  function hexByte(value){
-    var n = Math.max(0, Math.min(255, Math.round(Number(value) || 0)));
-    return (n < 16 ? '0' : '') + n.toString(16);
-  }
-
-  function opaqueColor(value){
-    if(!value || value === 'none' || value === 'transparent') return null;
-    var text = String(value).trim();
-    var hex = text.match(/#([0-9a-f]{6})(?:[0-9a-f]{2})?\b/i);
-    if(hex) return '#' + hex[1].toLowerCase();
-    var shortHex = text.match(/#([0-9a-f]{3})\b/i);
-    if(shortHex){
-      var h = shortHex[1].toLowerCase();
-      return '#' + h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
-    }
-    var rgb = text.match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:\s*[,\/]\s*([\d.]+%?))?\s*\)/i);
-    if(!rgb) return null;
-    var alpha = 1;
-    if(rgb[4] != null) alpha = /%$/.test(rgb[4]) ? parseFloat(rgb[4]) / 100 : parseFloat(rgb[4]);
-    if(!isFinite(alpha) || alpha < 0.88) return null;
-    return '#' + hexByte(rgb[1]) + hexByte(rgb[2]) + hexByte(rgb[3]);
-  }
-
-  function ownColor(el, win){
-    if(!el || el.nodeType !== 1) return null;
-    var style = safe(function(){ return win.getComputedStyle(el); }, null);
-    if(style){
-      /* En un degradado, el primer color es el que toca el borde superior. */
-      var fromImage = opaqueColor(style.backgroundImage);
-      if(fromImage) return fromImage;
-      var fromFill = opaqueColor(style.backgroundColor);
-      if(fromFill) return fromFill;
-    }
-    return null;
-  }
-
-  function isVisible(el){
+  function shown(el){
     if(!el) return false;
     return safe(function(){
-      if(el.hidden || el.getAttribute('aria-hidden') === 'true') return false;
       if(el.classList && (el.classList.contains('hidden') || el.classList.contains('sf-hidden'))) return false;
-      var win = el.ownerDocument.defaultView;
-      var style = win.getComputedStyle(el);
-      if(style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity || 1) < .03) return false;
-      var rect = el.getBoundingClientRect();
-      return rect.width > 2 && rect.height > 2 && rect.right > 0 && rect.bottom > 0;
+      if(el.getAttribute && el.getAttribute('aria-hidden') === 'true') return false;
+      var w = el.ownerDocument && el.ownerDocument.defaultView;
+      var cs = w && w.getComputedStyle ? w.getComputedStyle(el) : null;
+      if(cs && (cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity || 1) === 0)) return false;
+      var r = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+      if(r && (r.width < 2 || r.height < 2)) return false;
+      return true;
     }, false);
   }
 
-  function homeDocument(){
-    return safe(function(){
-      var frame = document.getElementById('homeFrame');
-      return frame && (frame.contentDocument || (frame.contentWindow && frame.contentWindow.document));
-    }, null);
+  /* Busca el documento controlador real (normalmente dentro de homeFrame). */
+  function findController(win, depth){
+    if(!win || depth > 7) return null;
+    var d = safe(function(){ return win.document; }, null);
+    if(!d) return null;
+    if(d.getElementById && (d.getElementById('voucherView') || d.getElementById('rcvVoucher'))){
+      return { win:win, doc:d };
+    }
+    var frames = safe(function(){ return d.querySelectorAll('iframe'); }, []);
+    for(var i=0; i<frames.length; i++){
+      var cw = safe(function(){ return frames[i].contentWindow; }, null);
+      var found = findController(cw, depth + 1);
+      if(found) return found;
+    }
+    return null;
   }
 
-  function removeInnerThemeMetas(doc){
+  function voucherActive(ctrl){
+    if(!ctrl || !ctrl.doc) return false;
+    var d = ctrl.doc;
+    var v = d.getElementById('voucherView');
+    var r = d.getElementById('rcvVoucher');
+    if(shown(v) || shown(r)) return true;
+
+    /* Respaldo: si el iframe del baucher está visible dentro de voucherView. */
+    var wrap = d.getElementById('baucher-embed-wrap');
+    var frame = d.getElementById('baucher-embed-frame');
+    if((shown(wrap) || shown(frame)) && (!v || shown(v))) return true;
+    return false;
+  }
+
+  function setTheme(doc, color){
     if(!doc) return;
     safe(function(){
       var metas = doc.querySelectorAll('meta[name="theme-color"]');
-      for(var i = 0; i < metas.length; i++) metas[i].remove();
+      if(!metas.length && doc.head){
+        var m = doc.createElement('meta');
+        m.name = 'theme-color';
+        doc.head.appendChild(m);
+        metas = [m];
+      }
+      for(var i=0; i<metas.length; i++) metas[i].setAttribute('content', color);
     });
   }
 
-  function countInnerThemeMetas(doc, depth){
-    if(!doc || depth > 8) return 0;
-    var total = depth > 0 ? safe(function(){
-      return doc.querySelectorAll('meta[name="theme-color"]').length;
-    }, 0) : 0;
-    var frames = safe(function(){ return doc.querySelectorAll('iframe'); }, []);
-    for(var i = 0; i < frames.length; i++){
-      var child = safe(function(){
-        return frames[i].contentDocument || (frames[i].contentWindow && frames[i].contentWindow.document);
-      }, null);
-      if(child) total += countInnerThemeMetas(child, depth + 1);
-    }
-    return total;
-  }
-
-  function knownVisibleState(){
-    if(document.body && document.body.classList.contains('mode-login')){
-      return {screen:'login', color:'#742284'};
-    }
-    var doc = homeDocument();
-    if(!doc) return null;
-
-    /* Pantallas superpuestas: se revisan primero porque pueden estar encima de
-       una vista normal que continúa montada en el DOM. */
-    var exact = [
-      ['voucherView', '#4a1972'],
-      ['rcvVoucher', '#5b2c83'],
-      ['qrScanView', '#333333'],
-      ['agregarContactoView', '#22002f'],
-      ['datosView', '#401066'],
-      ['qrRegView', '#742284']
-    ];
-    for(var i = 0; i < exact.length; i++){
-      if(isVisible(doc.getElementById(exact[i][0]))) return {screen:exact[i][0], color:exact[i][1]};
-    }
-
-    var normal = [
-      ['perfilEditarView', '#ffffff'],
-      ['banksView', '#742284'],
-      ['montoView', '#742284'],
-      ['yapearView', '#ffffff'],
-      ['homeView', HOME]
-    ];
-    for(var j = 0; j < normal.length; j++){
-      if(isVisible(doc.getElementById(normal[j][0]))) return {screen:normal[j][0], color:normal[j][1]};
-    }
-    return null;
-  }
-
-  function knownVisibleColor(){
-    var state = knownVisibleState();
-    return state ? state.color : null;
-  }
-
-  function sample(doc, x, y, depth){
-    if(!doc || depth > 8) return null;
-    var win = doc.defaultView;
-    if(!win) return null;
-    var width = safe(function(){ return doc.documentElement.clientWidth || win.innerWidth; }, 0);
-    var height = safe(function(){ return doc.documentElement.clientHeight || win.innerHeight; }, 0);
-    if(width < 2 || height < 2) return null;
-    x = Math.max(1, Math.min(width - 1, x));
-    y = Math.max(1, Math.min(height - 1, y));
-
-    var nodes = safe(function(){
-      return doc.elementsFromPoint ? doc.elementsFromPoint(x, y) : [doc.elementFromPoint(x, y)];
-    }, []);
-    for(var i = 0; i < nodes.length; i++){
-      var el = nodes[i];
-      if(!el || el.nodeType !== 1) continue;
-      if(String(el.tagName || '').toLowerCase() === 'iframe'){
-        var rect = safe(function(){ return el.getBoundingClientRect(); }, null);
-        var innerDoc = safe(function(){ return el.contentDocument || (el.contentWindow && el.contentWindow.document); }, null);
-        if(rect && innerDoc){
-          var innerColor = sample(innerDoc, x - rect.left, y - rect.top, depth + 1);
-          if(innerColor) return innerColor;
-        }
-      }
-      /* Revisar primero el fondo propio de cada capa. Si se subiera a sus
-         padres aquí, una capa transparente podría devolver el Home que está
-         detrás y ocultar el color de la pantalla actual. */
-      var color = ownColor(el, win);
-      if(color) return color;
-    }
-    if(nodes.length){
-      var parent = nodes[0] && nodes[0].parentElement;
-      while(parent){
-        var inherited = ownColor(parent, win);
-        if(inherited) return inherited;
-        parent = parent.parentElement;
-      }
-    }
-    return null;
-  }
-
-  function visibleTopColor(){
-    /* Las vistas conocidas mandan sobre el muestreo. El documento exterior es
-       un iframe contenedor y puede conservar durante unos milisegundos el
-       fondo de la pantalla anterior. */
-    var known = knownVisibleColor();
-    if(known) return known;
-    var width = document.documentElement.clientWidth || window.innerWidth || 390;
-    var probes = [
-      [width * .50, 2], [width * .22, 2], [width * .78, 2],
-      [width * .50, 7], [width * .22, 7], [width * .78, 7],
-      [width * .50, 15]
-    ];
-    var counts = Object.create(null);
-    var order = [];
-    for(var i = 0; i < probes.length; i++){
-      var color = sample(document, probes[i][0], probes[i][1], 0);
-      if(!color) continue;
-      if(!counts[color]){ counts[color] = 0; order.push(color); }
-      counts[color]++;
-    }
-    var chosen = null;
-    var best = 0;
-    for(var j = 0; j < order.length; j++){
-      if(counts[order[j]] > best){ chosen = order[j]; best = counts[order[j]]; }
-    }
-    /* El muestreo atraviesa los iframe/srcdoc y toma primero el fondo que
-       realmente toca el borde superior. La tabla solo es respaldo mientras
-       un iframe todavía se está montando. */
-    return chosen || lastColor || HOME;
-  }
-
-  function setCanvasBackground(el, color){
+  function paint(el, color){
     if(!el) return;
     safe(function(){
-      if(el.style.getPropertyValue('background-color').toLowerCase() !== color ||
-         el.style.getPropertyPriority('background-color') !== 'important'){
-        el.style.setProperty('background-color', color, 'important');
-      }
-      if(el.style.getPropertyValue('background-image') !== 'none' ||
-         el.style.getPropertyPriority('background-image') !== 'important'){
-        el.style.setProperty('background-image', 'none', 'important');
-      }
+      el.style.setProperty('background-color', color, 'important');
+      el.style.setProperty('background', color, 'important');
+      el.style.setProperty('background-image', 'none', 'important');
     });
   }
 
-  function paintOuterCanvas(color){
-    setCanvasBackground(document.documentElement, color);
-    setCanvasBackground(document.body, color);
-    setCanvasBackground(document.querySelector('.stage'), color);
-    setCanvasBackground(document.getElementById('homeFrame'), color);
-    safe(function(){
-      document.documentElement.style.setProperty('--theme-color', color, 'important');
-      document.documentElement.style.setProperty('--sb-color', color, 'important');
-      document.documentElement.setAttribute('data-yosi-status-color', color);
-    });
-  }
+  function setNativeStatusBar(color){
+    if(!isAndroid) return;
 
-  function applyNative(color){
+    /* Capacitor */
     safe(function(){
-      var status = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.StatusBar;
-      if(status && typeof status.setBackgroundColor === 'function'){
-        var result = status.setBackgroundColor({color:color});
+      var p = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.StatusBar;
+      if(p && typeof p.setBackgroundColor === 'function'){
+        var result = p.setBackgroundColor({ color: color });
         if(result && typeof result.catch === 'function') result.catch(function(){});
       }
     });
+
+    /* Cordova statusbar */
     safe(function(){
       if(window.StatusBar && typeof window.StatusBar.backgroundColorByHexString === 'function'){
         window.StatusBar.backgroundColorByHexString(color);
       }
     });
+
+    /* Puentes Android personalizados, solo si existen. */
+    safe(function(){
+      if(window.Android && typeof window.Android.setStatusBarColor === 'function'){
+        window.Android.setStatusBarColor(color);
+      }
+    });
   }
 
-  function debugBadge(){
-    var badge = document.getElementById('yosi-status-color-debug');
-    if(badge) return badge;
-    if(!document.body) return null;
-    badge = document.createElement('div');
-    badge.id = 'yosi-status-color-debug';
-    badge.setAttribute('aria-live', 'polite');
-    badge.style.cssText = [
-      'position:fixed','top:6px','left:6px','z-index:2147483647',
-      'max-width:calc(100vw - 12px)','padding:5px 7px','border-radius:7px',
-      'background:rgba(0,0,0,.82)','color:#fff','font:700 10px/1.25 monospace',
-      'letter-spacing:0','white-space:pre-line','pointer-events:none',
-      'box-shadow:0 2px 8px rgba(0,0,0,.30)','border:2px solid #ff5252'
-    ].join(';');
-    document.body.appendChild(badge);
-    return badge;
-  }
-
-  function updateDebug(color){
-    var badge = debugBadge();
-    if(!badge) return;
-    var state = knownVisibleState();
-    var screen = state ? state.screen : 'muestreo automático';
-    var meta = document.getElementById('app-theme-color') || document.querySelector('meta[name="theme-color"]');
-    var metaColor = String(meta && meta.getAttribute('content') || '').toLowerCase();
-    var rootColor = opaqueColor(safe(function(){
-      return window.getComputedStyle(document.documentElement).backgroundColor;
-    }, '')) || 'sin color';
-    var ok = metaColor === color && rootColor === color;
-    var standalone = safe(function(){
-      return window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
-    }, false);
-    var innerMetas = countInnerThemeMetas(document, 0);
-    var pass = ok && innerMetas === 0;
-    var border = pass ? '#39d353' : '#ff5252';
-    if(badge.style.getPropertyValue('border-color') !== border){
-      badge.style.setProperty('border-color', border, 'important');
+  function paintFrameTree(win, color, depth){
+    if(!win || depth > 7) return;
+    var d = safe(function(){ return win.document; }, null);
+    if(!d) return;
+    setTheme(d, color);
+    var frames = safe(function(){ return d.querySelectorAll('iframe'); }, []);
+    for(var i=0; i<frames.length; i++){
+      var cw = safe(function(){ return frames[i].contentWindow; }, null);
+      if(cw) paintFrameTree(cw, color, depth + 1);
     }
-    var message =
-      'PRUEBA BARRA · ' + screen + '\n' +
-      'SOLICITADO ' + color + ' · META ' + (metaColor || 'vacío') + '\n' +
-      'RAÍZ ' + rootColor + ' · ' + (standalone ? 'PWA' : 'NAVEGADOR') + '\n' +
-      'METAS IFRAME ' + innerMetas + ' · ' +
-      (pass ? 'CÓDIGO OK' : 'ERROR DE SINCRONIZACIÓN');
-    if(badge.textContent !== message) badge.textContent = message;
   }
 
-  function apply(){
-    scheduled = false;
-    if(document.visibilityState === 'hidden') return;
-    var color = visibleTopColor();
-    /* Chrome Android conserva la referencia al meta leído al iniciar. No se
-       reemplaza el nodo: se actualiza siempre el mismo elemento estable. */
-    var meta = document.getElementById('app-theme-color');
-    if(!meta){
-      meta = document.querySelector('meta[name="theme-color"]');
-      if(!meta && document.head){
-        meta = document.createElement('meta');
-        meta.id = 'app-theme-color';
-        meta.name = 'theme-color';
-        document.head.appendChild(meta);
+  function apply(force){
+    var ctrl = findController(window, 0);
+    var active = voucherActive(ctrl);
+    var color = active ? BAUCHER : HOME;
+
+    /* Esta clase también bloquea scripts viejos que fuerzan HOME cada 1.2 s. */
+    safe(function(){
+      document.documentElement.classList.toggle('__baucherTopActivo', active);
+      document.documentElement.classList.toggle('__yosiAndroidBaucherStatus', active);
+      if(document.body){
+        document.body.classList.toggle('__baucherTopActivo', active);
+        document.body.classList.toggle('__yosiAndroidBaucherStatus', active);
+      }
+    });
+
+    setTheme(document, color);
+    paint(document.documentElement, color);
+    if(document.body) paint(document.body, color);
+    paint(document.querySelector('.stage'), color);
+
+    if(ctrl && ctrl.doc){
+      setTheme(ctrl.doc, color);
+      if(active){
+        /* Solo durante el baucher: alinea también el iframe embebido. */
+        var vf = ctrl.doc.getElementById('voucherView');
+        if(vf) paint(vf, BAUCHER);
+        var bw = ctrl.doc.getElementById('baucher-embed-wrap');
+        var bf = ctrl.doc.getElementById('baucher-embed-frame');
+        if(bw) paint(bw, BAUCHER);
+        if(bf) paint(bf, BAUCHER);
       }
     }
-    if(meta && String(meta.getAttribute('content') || '').toLowerCase() !== color){
-      meta.setAttribute('content', color);
-    }
-    /* En una PWA Android la barra puede compositarse sobre el lienzo raíz.
-       Por eso el meta y el fondo del documento principal se verifican juntos,
-       incluso si el color lógico no cambió desde la ejecución anterior. */
-    paintOuterCanvas(color);
-    updateDebug(color);
-    if(color !== lastColor){
+
+    if(active) paintFrameTree(window, BAUCHER, 0);
+
+    if(force || color !== lastColor || active !== lastVoucher){
+      setNativeStatusBar(color);
       lastColor = color;
-      applyNative(color);
+      lastVoucher = active;
     }
   }
 
   function queue(){
-    if(scheduled) return;
-    scheduled = true;
-    (window.requestAnimationFrame || function(fn){ return setTimeout(fn, 16); })(apply);
+    clearTimeout(timer);
+    timer = setTimeout(function(){ apply(false); }, 0);
   }
 
-  function watchDoc(doc, depth){
-    if(!doc || depth > 8) return;
-    if(depth > 0) removeInnerThemeMetas(doc);
-    if(!doc.__yosiStatusColorWatchV246){
-      doc.__yosiStatusColorWatchV246 = true;
-      safe(function(){
-        new MutationObserver(function(){
-          if(depth > 0) removeInnerThemeMetas(doc);
-          scan();
-          queue();
-        }).observe(doc.documentElement, {
-          childList:true,
-          subtree:true,
-          attributes:true,
-          attributeFilter:['class','style','hidden','aria-hidden']
-        });
+  function boot(){
+    apply(true);
+    [20,60,120,250,500,900,1500].forEach(function(ms){ setTimeout(function(){ apply(true); }, ms); });
+
+    /* Reacciona al cambio Home <-> Baucher sin esperar. */
+    safe(function(){
+      new MutationObserver(queue).observe(document.documentElement, {
+        childList:true,
+        subtree:true,
+        attributes:true,
+        attributeFilter:['class','style','aria-hidden']
       });
-      ['pointerdown','pointerup','touchstart','touchend','click'].forEach(function(type){
-        safe(function(){ doc.addEventListener(type, queue, true); });
-      });
-    }
-    /* Aunque el documento ya esté observado, siempre volvemos a recorrer sus
-       iframe porque voucher y otras vistas crean iframe/srcdoc más tarde. */
-    var frames = safe(function(){ return doc.querySelectorAll('iframe'); }, []);
-    for(var i = 0; i < frames.length; i++){
-      var frame = frames[i];
-      if(!frame.__yosiStatusColorLoadV246){
-        frame.__yosiStatusColorLoadV246 = true;
-        safe(function(){ frame.addEventListener('load', function(){ scan(); queue(); }, true); });
-      }
-      var child = safe(function(){ return frame.contentDocument || (frame.contentWindow && frame.contentWindow.document); }, null);
-      if(child) watchDoc(child, depth + 1);
-    }
+    });
+
+    ['pointerdown','touchstart','mousedown','click','popstate'].forEach(function(ev){
+      safe(function(){ window.addEventListener(ev, queue, true); });
+    });
+
+    /* Respaldo liviano contra cualquier parche viejo que intente devolver #780699. */
+    setInterval(function(){ apply(false); }, 650);
   }
 
-  function scan(){ watchDoc(document, 0); queue(); }
-  window.__yosiRefreshAndroidTopColor = function(){ scan(); apply(); };
-  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scan, {once:true});
-  else scan();
-  window.addEventListener('load', scan, {once:true});
-  window.addEventListener('pageshow', scan, {passive:true});
-  window.addEventListener('resize', queue, {passive:true});
-  window.addEventListener('orientationchange', queue, {passive:true});
-  [0,40,100,220,500,900,1500,2600].forEach(function(ms){ setTimeout(scan, ms); });
-  setInterval(scan, 240);
-})();</script>
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once:true });
+  else boot();
+  window.addEventListener('load', function(){ apply(true); }, { once:true });
+  window.addEventListener('pageshow', function(){ setTimeout(function(){ apply(true); }, 0); });
+})();
+</script>
