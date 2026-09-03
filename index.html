@@ -35,7 +35,7 @@
 <meta http-equiv="Expires" content="0"/>
 <meta name="yosi-build" content="android-status-color-por-pantalla-v241-20260903"/>
 
-<link href="manifest.webmanifest" rel="manifest"/>
+<link href="manifest.webmanifest?v=status-color-v241-20260903" rel="manifest"/>
 <meta content="#780699" name="theme-color"/>
 <meta content="yes" name="apple-mobile-web-app-capable"/>
 <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
@@ -61,9 +61,9 @@
   try{
     if(window.top !== window || !('serviceWorker' in navigator)) return;
 
-    var SW_URL = './service-worker.js';
-    var UPDATE_KEY = 'yape_sw_last_update_v1';
-    var UPDATE_EVERY_MS = 6 * 60 * 60 * 1000;
+    var SW_URL = './service-worker.js?v=status-color-v241-20260903';
+    var UPDATE_KEY = 'yape_sw_last_update_status_color_v241';
+    var UPDATE_EVERY_MS = 0;
 
     function warmShell(reg){
       try{
