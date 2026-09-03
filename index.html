@@ -33,9 +33,9 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
-<meta name="yosi-build" content="android-status-color-un-meta-v245-20260903"/>
+<meta name="yosi-build" content="android-status-color-un-meta-v246-20260903"/>
 
-<link href="manifest.webmanifest?v=status-color-v245-20260903" rel="manifest"/>
+<link href="manifest.webmanifest?v=status-color-v246-20260903" rel="manifest"/>
 <meta content="#780699" id="app-theme-color" name="theme-color"/>
 <meta content="yes" name="apple-mobile-web-app-capable"/>
 <meta content="yes" name="mobile-web-app-capable"/>
@@ -62,8 +62,8 @@
   try{
     if(window.top !== window || !('serviceWorker' in navigator)) return;
 
-    var SW_URL = './service-worker.js?v=status-color-v245-20260903';
-    var UPDATE_KEY = 'yape_sw_last_update_status_color_v245';
+    var SW_URL = './service-worker.js?v=status-color-v246-20260903';
+    var UPDATE_KEY = 'yape_sw_last_update_status_color_v246';
     var UPDATE_EVERY_MS = 0;
 
     function warmShell(reg){
@@ -12867,7 +12867,7 @@ body.yape-help-open .background-all > *:not(#yapeHelpPersonajeScreen){
   function setMeta(doc, color){
     try{
       if(!doc || !doc.head) return;
-      /* Android: ningún documento interno crea metas; el único dueño es V245. */
+      /* Android: ningún documento interno crea metas; el único dueño es V246. */
       if(/Android/i.test(navigator.userAgent || '')) return;
       var metas = doc.querySelectorAll('meta[name="theme-color"]');
       if(!metas.length){
@@ -35987,7 +35987,7 @@ body.yosi-validando-suave #mModal{
   function setMeta(doc, color){
     try{
       if(!doc || !doc.head) return;
-      /* Android: ningún documento interno crea metas; el único dueño es V245. */
+      /* Android: ningún documento interno crea metas; el único dueño es V246. */
       if(/Android/i.test(navigator.userAgent || '')) return;
       var metas = doc.querySelectorAll('meta[name="theme-color"]');
       if(!metas.length){ var m = doc.createElement('meta'); m.name = 'theme-color'; doc.head.appendChild(m); metas = [m]; }
@@ -45002,11 +45002,11 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
   setInterval(scan, 900);
 })();</script>
 
-<!-- V245: un solo meta superior + diagnóstico visible en Android -->
-<script id="yosi-android-screen-status-color-v245">(function(){
+<!-- V246: un solo meta superior + recorrido continuo de iframe en Android -->
+<script id="yosi-android-screen-status-color-v246">(function(){
   'use strict';
-  if(!/Android/i.test(navigator.userAgent || '') || window.__yosiAndroidScreenStatusColorV245) return;
-  window.__yosiAndroidScreenStatusColorV245 = true;
+  if(!/Android/i.test(navigator.userAgent || '') || window.__yosiAndroidScreenStatusColorV246) return;
+  window.__yosiAndroidScreenStatusColorV246 = true;
 
   var HOME = '#780699';
   var lastColor = '';
@@ -45331,28 +45331,33 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
   }
 
   function watchDoc(doc, depth){
-    if(!doc || depth > 8 || doc.__yosiStatusColorWatchV245) return;
-    doc.__yosiStatusColorWatchV245 = true;
+    if(!doc || depth > 8) return;
     if(depth > 0) removeInnerThemeMetas(doc);
-    safe(function(){
-      new MutationObserver(function(){
-        if(depth > 0) removeInnerThemeMetas(doc);
-        queue();
-      }).observe(doc.documentElement, {
-        childList:true,
-        subtree:true,
-        attributes:true,
-        attributeFilter:['class','style','hidden','aria-hidden']
+    if(!doc.__yosiStatusColorWatchV246){
+      doc.__yosiStatusColorWatchV246 = true;
+      safe(function(){
+        new MutationObserver(function(){
+          if(depth > 0) removeInnerThemeMetas(doc);
+          scan();
+          queue();
+        }).observe(doc.documentElement, {
+          childList:true,
+          subtree:true,
+          attributes:true,
+          attributeFilter:['class','style','hidden','aria-hidden']
+        });
       });
-    });
-    ['pointerdown','pointerup','touchstart','touchend','click'].forEach(function(type){
-      safe(function(){ doc.addEventListener(type, queue, true); });
-    });
+      ['pointerdown','pointerup','touchstart','touchend','click'].forEach(function(type){
+        safe(function(){ doc.addEventListener(type, queue, true); });
+      });
+    }
+    /* Aunque el documento ya esté observado, siempre volvemos a recorrer sus
+       iframe porque voucher y otras vistas crean iframe/srcdoc más tarde. */
     var frames = safe(function(){ return doc.querySelectorAll('iframe'); }, []);
     for(var i = 0; i < frames.length; i++){
       var frame = frames[i];
-      if(!frame.__yosiStatusColorLoadV245){
-        frame.__yosiStatusColorLoadV245 = true;
+      if(!frame.__yosiStatusColorLoadV246){
+        frame.__yosiStatusColorLoadV246 = true;
         safe(function(){ frame.addEventListener('load', function(){ scan(); queue(); }, true); });
       }
       var child = safe(function(){ return frame.contentDocument || (frame.contentWindow && frame.contentWindow.document); }, null);
