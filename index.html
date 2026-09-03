@@ -33,11 +33,12 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
-<meta name="yosi-build" content="android-status-color-por-pantalla-v242-20260903"/>
+<meta name="yosi-build" content="android-status-color-por-pantalla-v243-20260903"/>
 
-<link href="manifest.webmanifest?v=status-color-v242-20260903" rel="manifest"/>
+<link href="manifest.webmanifest?v=status-color-v243-20260903" rel="manifest"/>
 <meta content="#780699" id="app-theme-color" name="theme-color"/>
 <meta content="yes" name="apple-mobile-web-app-capable"/>
+<meta content="yes" name="mobile-web-app-capable"/>
 <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
 <meta content="Yape" name="apple-mobile-web-app-title"/>
 <link href="icon-192.png" rel="apple-touch-icon"/>
@@ -61,8 +62,8 @@
   try{
     if(window.top !== window || !('serviceWorker' in navigator)) return;
 
-    var SW_URL = './service-worker.js?v=status-color-v242-20260903';
-    var UPDATE_KEY = 'yape_sw_last_update_status_color_v242';
+    var SW_URL = './service-worker.js?v=status-color-v243-20260903';
+    var UPDATE_KEY = 'yape_sw_last_update_status_color_v243';
     var UPDATE_EVERY_MS = 0;
 
     function warmShell(reg){
@@ -369,7 +370,7 @@
   if(!/Android/i.test(ua)) setInterval(syncTheme,1200);
   setTimeout(function(){try{window.__releaseBootSplash&&window.__releaseBootSplash('offline-lie-timeout');}catch(e){}},4800);
 })();</script>
-<style id="outer-voucher-home-color-final">#homeView,#homeFrame,#newHomeFrame{background:#780699!important;background-image:linear-gradient(180deg,#780699 0%,#780699 100%)!important}</style>
+<style id="outer-voucher-home-color-final">#homeView,#newHomeFrame{background:#780699!important;background-image:linear-gradient(180deg,#780699 0%,#780699 100%)!important}</style>
 <script id="outer-voucher-home-color-final-script">(function(){
   var ua=navigator.userAgent||'';
   var platform=navigator.platform||'';
@@ -380,13 +381,15 @@
   if(isIOS&&isStandalone) return;
   var css = 'background:#780699!important;background-image:linear-gradient(180deg,#780699 0%,#780699 100%)!important;';
   function paintOuter(){
-    try{['homeView','homeFrame','newHomeFrame'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.cssText+=';'+css;});}catch(e){}
+    /* Este código solo conserva el color de los elementos visuales del Home.
+       Antes pintaba también el iframe raíz y su html/body cada 500 ms, por lo
+       que anulaba el color de voucher y de cualquier otra pantalla. */
+    try{['homeView','newHomeFrame'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.cssText+=';'+css;});}catch(e){}
     try{
       var hf=document.getElementById('homeFrame');
       var d=hf&&(hf.contentDocument||(hf.contentWindow&&hf.contentWindow.document));
       if(d){
-        [d.documentElement,d.body].forEach(function(el){if(el)el.style.cssText+=';'+css;});
-        d.querySelectorAll('.homehead,#newHomeFrame').forEach(function(el){el.style.cssText+=';'+css;});
+        d.querySelectorAll('#homeView,.homehead,#newHomeFrame').forEach(function(el){el.style.cssText+=';'+css;});
         var nf=d.getElementById('newHomeFrame');
         var nd=nf&&(nf.contentDocument||(nf.contentWindow&&nf.contentWindow.document));
         if(nd){
@@ -12864,6 +12867,8 @@ body.yape-help-open .background-all > *:not(#yapeHelpPersonajeScreen){
   function setMeta(doc, color){
     try{
       if(!doc || !doc.head) return;
+      /* Android: el único dueño del meta superior es V243. */
+      if(/Android/i.test(navigator.userAgent || '') && doc === document) return;
       var metas = doc.querySelectorAll('meta[name="theme-color"]');
       if(!metas.length){
         var m = doc.createElement('meta');
@@ -12887,7 +12892,6 @@ body.yape-help-open .background-all > *:not(#yapeHelpPersonajeScreen){
 
   function paintOuter(color){
     try{
-      setMeta(document, color);
       document.documentElement.classList.toggle('__baucherTopActivo', color === BAUCHER_TOP);
       if(document.body) document.body.classList.toggle('__baucherTopActivo', color === BAUCHER_TOP);
       setBg(document.documentElement, color);
@@ -35983,6 +35987,8 @@ body.yosi-validando-suave #mModal{
   function setMeta(doc, color){
     try{
       if(!doc || !doc.head) return;
+      /* Android: el único dueño del meta superior es V243. */
+      if(/Android/i.test(navigator.userAgent || '') && doc === document) return;
       var metas = doc.querySelectorAll('meta[name="theme-color"]');
       if(!metas.length){ var m = doc.createElement('meta'); m.name = 'theme-color'; doc.head.appendChild(m); metas = [m]; }
       for(var i=0;i<metas.length;i++) metas[i].setAttribute('content', color);
@@ -36000,7 +36006,6 @@ body.yosi-validando-suave #mModal{
   }
   function paintOuter(color){
     try{
-      setMeta(document, color);
       bg(document.documentElement, color);
       if(document.body) bg(document.body, color);
       var stage = document.querySelector('.stage');
@@ -41430,7 +41435,6 @@ html,body,.stage,.views,.view,#homeView,#voucherView,#baucher-embed-wrap,#bauche
 <!-- V78: HOME morado actualizado para igualar la segunda referencia (#780699) -->
 <style id="yosi-home-purple-v78-final">
   body.mode-app #homeView,
-  body.mode-app #homeFrame,
   body.mode-app #newHomeFrame {
     background:#780699 !important;
     background-image:none !important;
@@ -41490,12 +41494,8 @@ html,body,.stage,.views,.view,#homeView,#voucherView,#baucher-embed-wrap,#bauche
   }
 
   function run(){
-    try{
-      var hf=document.getElementById('homeFrame');
-      if(hf) setBg(hf, SOLID);
-      /* No fijar aquí el meta theme-color: otras pantallas pueden tener un
-         encabezado distinto al Home. El sincronizador Android lo actualiza. */
-    }catch(e){}
+    /* El iframe exterior no pertenece visualmente al Home: contiene también
+       voucher y las demás vistas. Su fondo lo controla el sincronizador. */
     patchDoc(document,0);
   }
 
@@ -45000,11 +45000,11 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
   setInterval(scan, 900);
 })();</script>
 
-<!-- V242: controlador único de la barra superior en Android -->
-<script id="yosi-android-screen-status-color-v242">(function(){
+<!-- V243: controlador único de la barra superior en Android -->
+<script id="yosi-android-screen-status-color-v243">(function(){
   'use strict';
-  if(!/Android/i.test(navigator.userAgent || '') || window.__yosiAndroidScreenStatusColorV242) return;
-  window.__yosiAndroidScreenStatusColorV242 = true;
+  if(!/Android/i.test(navigator.userAgent || '') || window.__yosiAndroidScreenStatusColorV243) return;
+  window.__yosiAndroidScreenStatusColorV243 = true;
 
   var HOME = '#780699';
   var lastColor = '';
@@ -45144,6 +45144,11 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
   }
 
   function visibleTopColor(){
+    /* Las vistas conocidas mandan sobre el muestreo. El documento exterior es
+       un iframe contenedor y puede conservar durante unos milisegundos el
+       fondo de la pantalla anterior. */
+    var known = knownVisibleColor();
+    if(known) return known;
     var width = document.documentElement.clientWidth || window.innerWidth || 390;
     var probes = [
       [width * .50, 2], [width * .22, 2], [width * .78, 2],
@@ -45166,7 +45171,33 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
     /* El muestreo atraviesa los iframe/srcdoc y toma primero el fondo que
        realmente toca el borde superior. La tabla solo es respaldo mientras
        un iframe todavía se está montando. */
-    return chosen || knownVisibleColor() || lastColor || HOME;
+    return chosen || lastColor || HOME;
+  }
+
+  function setCanvasBackground(el, color){
+    if(!el) return;
+    safe(function(){
+      if(el.style.getPropertyValue('background-color').toLowerCase() !== color ||
+         el.style.getPropertyPriority('background-color') !== 'important'){
+        el.style.setProperty('background-color', color, 'important');
+      }
+      if(el.style.getPropertyValue('background-image') !== 'none' ||
+         el.style.getPropertyPriority('background-image') !== 'important'){
+        el.style.setProperty('background-image', 'none', 'important');
+      }
+    });
+  }
+
+  function paintOuterCanvas(color){
+    setCanvasBackground(document.documentElement, color);
+    setCanvasBackground(document.body, color);
+    setCanvasBackground(document.querySelector('.stage'), color);
+    setCanvasBackground(document.getElementById('homeFrame'), color);
+    safe(function(){
+      document.documentElement.style.setProperty('--theme-color', color, 'important');
+      document.documentElement.style.setProperty('--sb-color', color, 'important');
+      document.documentElement.setAttribute('data-yosi-status-color', color);
+    });
   }
 
   function applyNative(color){
@@ -45203,6 +45234,10 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
     if(meta && String(meta.getAttribute('content') || '').toLowerCase() !== color){
       meta.setAttribute('content', color);
     }
+    /* En una PWA Android la barra puede compositarse sobre el lienzo raíz.
+       Por eso el meta y el fondo del documento principal se verifican juntos,
+       incluso si el color lógico no cambió desde la ejecución anterior. */
+    paintOuterCanvas(color);
     if(color !== lastColor){
       lastColor = color;
       applyNative(color);
@@ -45216,8 +45251,8 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
   }
 
   function watchDoc(doc, depth){
-    if(!doc || depth > 8 || doc.__yosiStatusColorWatchV242) return;
-    doc.__yosiStatusColorWatchV242 = true;
+    if(!doc || depth > 8 || doc.__yosiStatusColorWatchV243) return;
+    doc.__yosiStatusColorWatchV243 = true;
     safe(function(){
       new MutationObserver(queue).observe(doc.documentElement, {
         childList:true,
@@ -45232,8 +45267,8 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
     var frames = safe(function(){ return doc.querySelectorAll('iframe'); }, []);
     for(var i = 0; i < frames.length; i++){
       var frame = frames[i];
-      if(!frame.__yosiStatusColorLoadV242){
-        frame.__yosiStatusColorLoadV242 = true;
+      if(!frame.__yosiStatusColorLoadV243){
+        frame.__yosiStatusColorLoadV243 = true;
         safe(function(){ frame.addEventListener('load', function(){ scan(); queue(); }, true); });
       }
       var child = safe(function(){ return frame.contentDocument || (frame.contentWindow && frame.contentWindow.document); }, null);
