@@ -33,7 +33,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
-<meta name="yosi-build" content="biometria-perfil-v34-misma-logica-responsive-setup-20260820"/>
+<meta name="yosi-build" content="biometria-perfil-v35-ios-home-sticky-safe-area-20260903"/>
 
 <link href="manifest.webmanifest" rel="manifest"/>
 <meta content="#780699" name="theme-color"/>
@@ -44302,7 +44302,9 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
 
 
 
-<!-- V160: cabecera Home corregida. Mantiene su posición normal y al deslizar se pega arriba. -->
+<!-- V241: cabecera Home corregida. Mantiene su posición normal y al deslizar se pega arriba.
+     En iPhone también cubre la zona segura para que el contenido no pase detrás
+     de la hora/isla dinámica durante el scroll. -->
 <script id="yosi-home-sticky-header-v160">
 (function(){
   'use strict';
@@ -44310,6 +44312,12 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
   window.__yosiHomeStickyHeaderV160Installed = true;
 
   var STYLE_ID = 'yosi-home-sticky-header-style-v160';
+  var IOS_CLASS = 'yosi-ios-home-header-fix-v241';
+  var IOS_GUARD_ID = 'yosi-ios-home-safe-guard-v241';
+  var ua = navigator.userAgent || '';
+  var platform = navigator.platform || '';
+  var IS_IOS = /iPad|iPhone|iPod/i.test(ua) ||
+    (platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   var CSS = [
     'html body .homehead .homebienvenida.yape-search-head{',
       'position:-webkit-sticky!important;',
@@ -44343,8 +44351,53 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
       'height:2px!important;',
       'background:#780699!important;',
       'pointer-events:none!important;',
+    '}',
+    'html.'+IOS_CLASS+' body #'+IOS_GUARD_ID+'{',
+      'display:block!important;',
+      'position:fixed!important;',
+      'left:0!important;',
+      'right:0!important;',
+      'top:0!important;',
+      'width:100vw!important;',
+      'height:calc(var(--yosi-home-safe-top-v241,0px) + 1px)!important;',
+      'background:#780699!important;',
+      'background-image:none!important;',
+      'pointer-events:none!important;',
+      'z-index:2147481000!important;',
+      '-webkit-transform:translateZ(0)!important;',
+      'transform:translateZ(0)!important;',
+    '}',
+    'html.'+IOS_CLASS+' body .homehead .homebienvenida.yape-search-head{',
+      'top:var(--yosi-home-safe-top-v241,0px)!important;',
+      'z-index:2147482000!important;',
     '}'
   ].join('');
+
+  function readSafeTop(){
+    if(!IS_IOS) return 0;
+    var value = 0;
+    try{
+      var probe = document.createElement('div');
+      probe.setAttribute('aria-hidden','true');
+      probe.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;visibility:hidden;pointer-events:none;padding-top:constant(safe-area-inset-top);padding-top:env(safe-area-inset-top,0px);';
+      (document.body || document.documentElement).appendChild(probe);
+      value = parseFloat(getComputedStyle(probe).paddingTop) || 0;
+      if(probe.parentNode) probe.parentNode.removeChild(probe);
+    }catch(e){}
+    try{
+      var inherited = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--yosi-ios-safe-top')) || 0;
+      if(inherited > value) value = inherited;
+    }catch(e){}
+    if(value < 18){
+      var sw = 0, sh = 0;
+      try{
+        sw = Math.min(screen.width || 0, screen.height || 0);
+        sh = Math.max(screen.width || 0, screen.height || 0);
+      }catch(e){}
+      value = (sh >= 812 && sw >= 375) ? 47 : 20;
+    }
+    return Math.max(20, Math.min(70, Math.round(value)));
+  }
 
   function getDoc(frame){
     try{return frame && (frame.contentDocument || (frame.contentWindow && frame.contentWindow.document));}
@@ -44366,12 +44419,28 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
     }
     if(style.textContent !== CSS) style.textContent = CSS;
 
+    var iosTop = 0;
+    if(IS_IOS){
+      iosTop = readSafeTop();
+      try{
+        doc.documentElement.classList.add(IOS_CLASS);
+        doc.documentElement.style.setProperty('--yosi-home-safe-top-v241',iosTop+'px');
+        var guard = doc.getElementById(IOS_GUARD_ID);
+        if(!guard){
+          guard = doc.createElement('div');
+          guard.id = IOS_GUARD_ID;
+          guard.setAttribute('aria-hidden','true');
+          (doc.body || doc.documentElement).appendChild(guard);
+        }
+      }catch(e){}
+    }
+
     /* Fuerza solamente las propiedades de la cabecera. No toca imágenes, rutas,
        botones, saldo, movimientos ni ninguna lógica del Home. */
     try{
       head.style.setProperty('position','sticky','important');
-      head.style.setProperty('top','env(safe-area-inset-top,0px)','important');
-      head.style.setProperty('z-index','2147480000','important');
+      head.style.setProperty('top',IS_IOS ? 'var(--yosi-home-safe-top-v241,'+iosTop+'px)' : 'env(safe-area-inset-top,0px)','important');
+      head.style.setProperty('z-index',IS_IOS ? '2147482000' : '2147480000','important');
       head.style.setProperty('background','#780699','important');
       head.style.setProperty('background-image','none','important');
       head.style.setProperty('isolation','isolate','important');
