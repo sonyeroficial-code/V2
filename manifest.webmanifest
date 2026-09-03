@@ -5,7 +5,7 @@
   "description": "Aplicación web para dispositivos móviles.",
   "lang": "es-PE",
   "dir": "ltr",
-  "start_url": "./index.html?v=status-color-v241-20260903",
+  "start_url": "./index.html?v=status-color-v242-20260903",
   "scope": "./",
   "display": "standalone",
   "display_override": [

@@ -1,14 +1,14 @@
 'use strict';
 
-const CACHE_VERSION = 'yape-pwa-status-color-v241-20260903';
+const CACHE_VERSION = 'yape-pwa-status-color-v242-20260903';
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
   './',
   './index.html',
-  './index.html?v=status-color-v241-20260903',
+  './index.html?v=status-color-v242-20260903',
   './manifest.webmanifest',
-  './manifest.webmanifest?v=status-color-v241-20260903',
+  './manifest.webmanifest?v=status-color-v242-20260903',
   './favicon-32.png',
   './icon-180.png',
   './icon-192.png',
