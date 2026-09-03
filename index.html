@@ -33,7 +33,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
-<meta name="yosi-build" content="biometria-perfil-v36-ios-pagar-servicios-safe-area-20260903"/>
+<meta name="yosi-build" content="biometria-perfil-v37-ios-bancos-safe-area-20260903"/>
 
 <link href="manifest.webmanifest" rel="manifest"/>
 <meta content="#780699" name="theme-color"/>
@@ -41532,6 +41532,107 @@ html.yosi-ios-standalone-full-v13 .stage > iframe{
   window.addEventListener('pageshow',bind,{passive:true});
   window.addEventListener('resize',function(){setTimeout(apply,60);},{passive:true});
   document.addEventListener('pointerup',function(){setTimeout(bind,40);},true);
+})();
+</script>
+
+<!-- V243: zona segura superior exclusiva para la lista de bancos en iPhone. -->
+<script id="yosi-banks-ios-safe-v243">
+(function(){
+  'use strict';
+  if(window.__yosiBanksIosSafeV243Installed) return;
+
+  var ua = navigator.userAgent || '';
+  var platform = navigator.platform || '';
+  var isIOS = /iPad|iPhone|iPod/i.test(ua) ||
+    (platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if(!isIOS) return;
+  window.__yosiBanksIosSafeV243Installed = true;
+
+  var STYLE_ID = 'yosi-banks-ios-safe-style-v243';
+
+  function getDoc(frame){
+    try{return frame && (frame.contentDocument || (frame.contentWindow && frame.contentWindow.document));}
+    catch(e){return null;}
+  }
+
+  function safeTop(){
+    var value = 0;
+    try{
+      var probe = document.createElement('div');
+      probe.setAttribute('aria-hidden','true');
+      probe.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;visibility:hidden;pointer-events:none;padding-top:constant(safe-area-inset-top);padding-top:env(safe-area-inset-top,0px);';
+      (document.body || document.documentElement).appendChild(probe);
+      value = parseFloat(getComputedStyle(probe).paddingTop) || 0;
+      if(probe.parentNode) probe.parentNode.removeChild(probe);
+    }catch(e){}
+    if(value < 18){
+      var sw = 0, sh = 0;
+      try{
+        sw = Math.min(screen.width || 0, screen.height || 0);
+        sh = Math.max(screen.width || 0, screen.height || 0);
+      }catch(e){}
+      if(sh >= 852 && sw >= 390) value = 59;
+      else if(sh >= 812 && sw >= 375) value = 47;
+      else value = 20;
+    }
+    return Math.max(20, Math.min(70, Math.round(value)));
+  }
+
+  function locate(){
+    var homeFrame = document.getElementById('homeFrame');
+    var homeDoc = getDoc(homeFrame);
+    var banksFrame = homeDoc && homeDoc.getElementById('banksNewFrame');
+    return {homeFrame:homeFrame,homeDoc:homeDoc,banksFrame:banksFrame,banksDoc:getDoc(banksFrame)};
+  }
+
+  function apply(){
+    var found = locate();
+    var doc = found.banksDoc;
+    if(!doc || !doc.documentElement) return false;
+    var top = safeTop();
+    var style = doc.getElementById(STYLE_ID);
+    if(!style){
+      style = doc.createElement('style');
+      style.id = STYLE_ID;
+      (doc.head || doc.documentElement).appendChild(style);
+    }
+    style.textContent = [
+      ':root{--yosi-banks-ios-safe-top:'+top+'px!important;}',
+      '.head{height:calc(15vw + var(--yosi-banks-ios-safe-top))!important;',
+      'min-height:calc(15vw + var(--yosi-banks-ios-safe-top))!important;',
+      'padding-top:var(--yosi-banks-ios-safe-top)!important;',
+      'box-sizing:border-box!important;}',
+      '.head>div,.head>h3{height:15vw!important;}'
+    ].join('');
+    return true;
+  }
+
+  function bind(){
+    var found = locate();
+    if(found.homeFrame && !found.homeFrame.__yosiBanksIosSafeV243Bound){
+      found.homeFrame.__yosiBanksIosSafeV243Bound = true;
+      found.homeFrame.addEventListener('load',function(){
+        [0,60,180,420].forEach(function(ms){setTimeout(bind,ms);});
+      },{passive:true});
+    }
+    if(found.banksFrame && !found.banksFrame.__yosiBanksIosSafeV243Bound){
+      found.banksFrame.__yosiBanksIosSafeV243Bound = true;
+      found.banksFrame.addEventListener('load',function(){
+        [0,40,120,300].forEach(function(ms){setTimeout(apply,ms);});
+      },{passive:true});
+    }
+    apply();
+  }
+
+  function boot(){
+    bind();
+    [40,120,300,700,1400,2600].forEach(function(ms){setTimeout(bind,ms);});
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded',boot,{once:true});
+  else boot();
+  window.addEventListener('pageshow',bind,{passive:true});
+  window.addEventListener('resize',function(){setTimeout(apply,60);},{passive:true});
+  window.addEventListener('orientationchange',function(){setTimeout(apply,120);},{passive:true});
 })();
 </script>
 
