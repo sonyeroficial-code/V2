@@ -27377,16 +27377,22 @@ import { getFirestore, doc, getDoc, collection, query, where, getDocs, limit } f
   }
 
   function apply(active){
-    if(active === current) return;
+    var wanted = active ? BAUCHER_TOP : HOME_TOP;
+    var metaIsCorrect = false;
+    try{
+      var currentMeta = document.querySelector('meta[name="theme-color"]');
+      metaIsCorrect = !!currentMeta && String(currentMeta.getAttribute('content') || '').toLowerCase() === wanted;
+    }catch(e){}
+    if(active === current && metaIsCorrect) return;
     current = active;
     try{
       document.documentElement.classList.toggle('__baucherTopActivo', active);
       if(document.body) document.body.classList.toggle('__baucherTopActivo', active);
-      metaTheme(document, active ? BAUCHER_TOP : HOME_TOP);
-      setBg(document.documentElement, active ? BAUCHER_TOP : HOME_TOP);
-      if(document.body) setBg(document.body, active ? BAUCHER_TOP : HOME_TOP);
+      metaTheme(document, wanted);
+      setBg(document.documentElement, wanted);
+      if(document.body) setBg(document.body, wanted);
       var stage = document.querySelector('.stage');
-      if(stage) setBg(stage, active ? BAUCHER_TOP : HOME_TOP);
+      if(stage) setBg(stage, wanted);
     }catch(e){}
     if(!active) paintHomeOnly();
   }
@@ -27550,6 +27556,16 @@ import { getFirestore, doc, getDoc, collection, query, where, getDocs, limit } f
     document.addEventListener(ev, function(){ hookHomeDoc(); queue(); }, true);
   });
   try{ new MutationObserver(function(){ hookHomeDoc(); queue(); }).observe(document.documentElement, {childList:true, subtree:true, attributes:true, attributeFilter:['class','style','aria-hidden']}); }catch(e){}
+  try{
+    if(document.head){
+      new MutationObserver(function(){ queue(); }).observe(document.head, {
+        childList:true,
+        subtree:true,
+        attributes:true,
+        attributeFilter:['content']
+      });
+    }
+  }catch(e){}
 })();</script>
 
 <style id="share-icon-transparent-integrated">#voucherView .share img,#voucherView .share-icon,.share .share-icon,.compartir img{background:transparent !important;border:0 !important;box-shadow:none !important;object-fit:contain !important;mix-blend-mode:normal !important}</style>
@@ -41643,7 +41659,9 @@ html,body,.stage,.views,.view,#homeView,#voucherView,#baucher-embed-wrap,#bauche
     try{
       var hf=document.getElementById('homeFrame');
       if(hf) setBg(hf, SOLID);
-      if(document.body && document.body.classList.contains('mode-app')){
+      var voucherActive = document.documentElement.classList.contains('__baucherTopActivo') ||
+        (document.body && document.body.classList.contains('__baucherTopActivo'));
+      if(document.body && document.body.classList.contains('mode-app') && !voucherActive){
         var meta=document.querySelector('meta[name="theme-color"]');
         if(meta) meta.setAttribute('content',HOME);
       }
