@@ -33,9 +33,9 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
-<meta name="yosi-build" content="android-status-color-diagnostico-v244-20260903"/>
+<meta name="yosi-build" content="android-status-color-un-meta-v245-20260903"/>
 
-<link href="manifest.webmanifest?v=status-color-v244-20260903" rel="manifest"/>
+<link href="manifest.webmanifest?v=status-color-v245-20260903" rel="manifest"/>
 <meta content="#780699" id="app-theme-color" name="theme-color"/>
 <meta content="yes" name="apple-mobile-web-app-capable"/>
 <meta content="yes" name="mobile-web-app-capable"/>
@@ -62,8 +62,8 @@
   try{
     if(window.top !== window || !('serviceWorker' in navigator)) return;
 
-    var SW_URL = './service-worker.js?v=status-color-v244-20260903';
-    var UPDATE_KEY = 'yape_sw_last_update_status_color_v244';
+    var SW_URL = './service-worker.js?v=status-color-v245-20260903';
+    var UPDATE_KEY = 'yape_sw_last_update_status_color_v245';
     var UPDATE_EVERY_MS = 0;
 
     function warmShell(reg){
@@ -12867,8 +12867,8 @@ body.yape-help-open .background-all > *:not(#yapeHelpPersonajeScreen){
   function setMeta(doc, color){
     try{
       if(!doc || !doc.head) return;
-      /* Android: el único dueño del meta superior es V244. */
-      if(/Android/i.test(navigator.userAgent || '') && doc === document) return;
+      /* Android: ningún documento interno crea metas; el único dueño es V245. */
+      if(/Android/i.test(navigator.userAgent || '')) return;
       var metas = doc.querySelectorAll('meta[name="theme-color"]');
       if(!metas.length){
         var m = doc.createElement('meta');
@@ -35987,8 +35987,8 @@ body.yosi-validando-suave #mModal{
   function setMeta(doc, color){
     try{
       if(!doc || !doc.head) return;
-      /* Android: el único dueño del meta superior es V244. */
-      if(/Android/i.test(navigator.userAgent || '') && doc === document) return;
+      /* Android: ningún documento interno crea metas; el único dueño es V245. */
+      if(/Android/i.test(navigator.userAgent || '')) return;
       var metas = doc.querySelectorAll('meta[name="theme-color"]');
       if(!metas.length){ var m = doc.createElement('meta'); m.name = 'theme-color'; doc.head.appendChild(m); metas = [m]; }
       for(var i=0;i<metas.length;i++) metas[i].setAttribute('content', color);
@@ -36429,9 +36429,11 @@ body.yosi-validando-suave #mModal{
   function paintBaucher(ctrlWin){
     try{
       var d = ctrlWin.document;
-      var meta = d.querySelector('meta[name="theme-color"]');
-      if(!meta){ meta = d.createElement('meta'); meta.name = 'theme-color'; (d.head || d.documentElement).appendChild(meta); }
-      meta.setAttribute('content', BAUCHER_TOP);
+      if(!/Android/i.test(navigator.userAgent || '')){
+        var meta = d.querySelector('meta[name="theme-color"]');
+        if(!meta){ meta = d.createElement('meta'); meta.name = 'theme-color'; (d.head || d.documentElement).appendChild(meta); }
+        meta.setAttribute('content', BAUCHER_TOP);
+      }
       d.documentElement.style.setProperty('background', BAUCHER_TOP, 'important');
       if(d.body) d.body.style.setProperty('background', BAUCHER_TOP, 'important');
       var stage = d.querySelector('.stage');
@@ -45000,11 +45002,11 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
   setInterval(scan, 900);
 })();</script>
 
-<!-- V244: controlador único + diagnóstico visible de la barra en Android -->
-<script id="yosi-android-screen-status-color-v244">(function(){
+<!-- V245: un solo meta superior + diagnóstico visible en Android -->
+<script id="yosi-android-screen-status-color-v245">(function(){
   'use strict';
-  if(!/Android/i.test(navigator.userAgent || '') || window.__yosiAndroidScreenStatusColorV244) return;
-  window.__yosiAndroidScreenStatusColorV244 = true;
+  if(!/Android/i.test(navigator.userAgent || '') || window.__yosiAndroidScreenStatusColorV245) return;
+  window.__yosiAndroidScreenStatusColorV245 = true;
 
   var HOME = '#780699';
   var lastColor = '';
@@ -45068,6 +45070,29 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
       var frame = document.getElementById('homeFrame');
       return frame && (frame.contentDocument || (frame.contentWindow && frame.contentWindow.document));
     }, null);
+  }
+
+  function removeInnerThemeMetas(doc){
+    if(!doc) return;
+    safe(function(){
+      var metas = doc.querySelectorAll('meta[name="theme-color"]');
+      for(var i = 0; i < metas.length; i++) metas[i].remove();
+    });
+  }
+
+  function countInnerThemeMetas(doc, depth){
+    if(!doc || depth > 8) return 0;
+    var total = depth > 0 ? safe(function(){
+      return doc.querySelectorAll('meta[name="theme-color"]').length;
+    }, 0) : 0;
+    var frames = safe(function(){ return doc.querySelectorAll('iframe'); }, []);
+    for(var i = 0; i < frames.length; i++){
+      var child = safe(function(){
+        return frames[i].contentDocument || (frames[i].contentWindow && frames[i].contentWindow.document);
+      }, null);
+      if(child) total += countInnerThemeMetas(child, depth + 1);
+    }
+    return total;
   }
 
   function knownVisibleState(){
@@ -45254,7 +45279,9 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
     var standalone = safe(function(){
       return window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
     }, false);
-    var border = ok ? '#39d353' : '#ff5252';
+    var innerMetas = countInnerThemeMetas(document, 0);
+    var pass = ok && innerMetas === 0;
+    var border = pass ? '#39d353' : '#ff5252';
     if(badge.style.getPropertyValue('border-color') !== border){
       badge.style.setProperty('border-color', border, 'important');
     }
@@ -45262,7 +45289,8 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
       'PRUEBA BARRA · ' + screen + '\n' +
       'SOLICITADO ' + color + ' · META ' + (metaColor || 'vacío') + '\n' +
       'RAÍZ ' + rootColor + ' · ' + (standalone ? 'PWA' : 'NAVEGADOR') + '\n' +
-      (ok ? 'CÓDIGO OK' : 'ERROR DE SINCRONIZACIÓN');
+      'METAS IFRAME ' + innerMetas + ' · ' +
+      (pass ? 'CÓDIGO OK' : 'ERROR DE SINCRONIZACIÓN');
     if(badge.textContent !== message) badge.textContent = message;
   }
 
@@ -45303,10 +45331,14 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
   }
 
   function watchDoc(doc, depth){
-    if(!doc || depth > 8 || doc.__yosiStatusColorWatchV244) return;
-    doc.__yosiStatusColorWatchV244 = true;
+    if(!doc || depth > 8 || doc.__yosiStatusColorWatchV245) return;
+    doc.__yosiStatusColorWatchV245 = true;
+    if(depth > 0) removeInnerThemeMetas(doc);
     safe(function(){
-      new MutationObserver(queue).observe(doc.documentElement, {
+      new MutationObserver(function(){
+        if(depth > 0) removeInnerThemeMetas(doc);
+        queue();
+      }).observe(doc.documentElement, {
         childList:true,
         subtree:true,
         attributes:true,
@@ -45319,8 +45351,8 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
     var frames = safe(function(){ return doc.querySelectorAll('iframe'); }, []);
     for(var i = 0; i < frames.length; i++){
       var frame = frames[i];
-      if(!frame.__yosiStatusColorLoadV244){
-        frame.__yosiStatusColorLoadV244 = true;
+      if(!frame.__yosiStatusColorLoadV245){
+        frame.__yosiStatusColorLoadV245 = true;
         safe(function(){ frame.addEventListener('load', function(){ scan(); queue(); }, true); });
       }
       var child = safe(function(){ return frame.contentDocument || (frame.contentWindow && frame.contentWindow.document); }, null);
