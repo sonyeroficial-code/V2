@@ -33,9 +33,9 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
-<meta name="yosi-build" content="android-status-color-por-pantalla-v243-20260903"/>
+<meta name="yosi-build" content="android-status-color-diagnostico-v244-20260903"/>
 
-<link href="manifest.webmanifest?v=status-color-v243-20260903" rel="manifest"/>
+<link href="manifest.webmanifest?v=status-color-v244-20260903" rel="manifest"/>
 <meta content="#780699" id="app-theme-color" name="theme-color"/>
 <meta content="yes" name="apple-mobile-web-app-capable"/>
 <meta content="yes" name="mobile-web-app-capable"/>
@@ -62,8 +62,8 @@
   try{
     if(window.top !== window || !('serviceWorker' in navigator)) return;
 
-    var SW_URL = './service-worker.js?v=status-color-v243-20260903';
-    var UPDATE_KEY = 'yape_sw_last_update_status_color_v243';
+    var SW_URL = './service-worker.js?v=status-color-v244-20260903';
+    var UPDATE_KEY = 'yape_sw_last_update_status_color_v244';
     var UPDATE_EVERY_MS = 0;
 
     function warmShell(reg){
@@ -12867,7 +12867,7 @@ body.yape-help-open .background-all > *:not(#yapeHelpPersonajeScreen){
   function setMeta(doc, color){
     try{
       if(!doc || !doc.head) return;
-      /* Android: el único dueño del meta superior es V243. */
+      /* Android: el único dueño del meta superior es V244. */
       if(/Android/i.test(navigator.userAgent || '') && doc === document) return;
       var metas = doc.querySelectorAll('meta[name="theme-color"]');
       if(!metas.length){
@@ -35987,7 +35987,7 @@ body.yosi-validando-suave #mModal{
   function setMeta(doc, color){
     try{
       if(!doc || !doc.head) return;
-      /* Android: el único dueño del meta superior es V243. */
+      /* Android: el único dueño del meta superior es V244. */
       if(/Android/i.test(navigator.userAgent || '') && doc === document) return;
       var metas = doc.querySelectorAll('meta[name="theme-color"]');
       if(!metas.length){ var m = doc.createElement('meta'); m.name = 'theme-color'; doc.head.appendChild(m); metas = [m]; }
@@ -45000,11 +45000,11 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
   setInterval(scan, 900);
 })();</script>
 
-<!-- V243: controlador único de la barra superior en Android -->
-<script id="yosi-android-screen-status-color-v243">(function(){
+<!-- V244: controlador único + diagnóstico visible de la barra en Android -->
+<script id="yosi-android-screen-status-color-v244">(function(){
   'use strict';
-  if(!/Android/i.test(navigator.userAgent || '') || window.__yosiAndroidScreenStatusColorV243) return;
-  window.__yosiAndroidScreenStatusColorV243 = true;
+  if(!/Android/i.test(navigator.userAgent || '') || window.__yosiAndroidScreenStatusColorV244) return;
+  window.__yosiAndroidScreenStatusColorV244 = true;
 
   var HOME = '#780699';
   var lastColor = '';
@@ -45070,8 +45070,10 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
     }, null);
   }
 
-  function knownVisibleColor(){
-    if(document.body && document.body.classList.contains('mode-login')) return '#742284';
+  function knownVisibleState(){
+    if(document.body && document.body.classList.contains('mode-login')){
+      return {screen:'login', color:'#742284'};
+    }
     var doc = homeDocument();
     if(!doc) return null;
 
@@ -45086,7 +45088,7 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
       ['qrRegView', '#742284']
     ];
     for(var i = 0; i < exact.length; i++){
-      if(isVisible(doc.getElementById(exact[i][0]))) return exact[i][1];
+      if(isVisible(doc.getElementById(exact[i][0]))) return {screen:exact[i][0], color:exact[i][1]};
     }
 
     var normal = [
@@ -45097,9 +45099,14 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
       ['homeView', HOME]
     ];
     for(var j = 0; j < normal.length; j++){
-      if(isVisible(doc.getElementById(normal[j][0]))) return normal[j][1];
+      if(isVisible(doc.getElementById(normal[j][0]))) return {screen:normal[j][0], color:normal[j][1]};
     }
     return null;
+  }
+
+  function knownVisibleColor(){
+    var state = knownVisibleState();
+    return state ? state.color : null;
   }
 
   function sample(doc, x, y, depth){
@@ -45215,6 +45222,50 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
     });
   }
 
+  function debugBadge(){
+    var badge = document.getElementById('yosi-status-color-debug');
+    if(badge) return badge;
+    if(!document.body) return null;
+    badge = document.createElement('div');
+    badge.id = 'yosi-status-color-debug';
+    badge.setAttribute('aria-live', 'polite');
+    badge.style.cssText = [
+      'position:fixed','top:6px','left:6px','z-index:2147483647',
+      'max-width:calc(100vw - 12px)','padding:5px 7px','border-radius:7px',
+      'background:rgba(0,0,0,.82)','color:#fff','font:700 10px/1.25 monospace',
+      'letter-spacing:0','white-space:pre-line','pointer-events:none',
+      'box-shadow:0 2px 8px rgba(0,0,0,.30)','border:2px solid #ff5252'
+    ].join(';');
+    document.body.appendChild(badge);
+    return badge;
+  }
+
+  function updateDebug(color){
+    var badge = debugBadge();
+    if(!badge) return;
+    var state = knownVisibleState();
+    var screen = state ? state.screen : 'muestreo automático';
+    var meta = document.getElementById('app-theme-color') || document.querySelector('meta[name="theme-color"]');
+    var metaColor = String(meta && meta.getAttribute('content') || '').toLowerCase();
+    var rootColor = opaqueColor(safe(function(){
+      return window.getComputedStyle(document.documentElement).backgroundColor;
+    }, '')) || 'sin color';
+    var ok = metaColor === color && rootColor === color;
+    var standalone = safe(function(){
+      return window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+    }, false);
+    var border = ok ? '#39d353' : '#ff5252';
+    if(badge.style.getPropertyValue('border-color') !== border){
+      badge.style.setProperty('border-color', border, 'important');
+    }
+    var message =
+      'PRUEBA BARRA · ' + screen + '\n' +
+      'SOLICITADO ' + color + ' · META ' + (metaColor || 'vacío') + '\n' +
+      'RAÍZ ' + rootColor + ' · ' + (standalone ? 'PWA' : 'NAVEGADOR') + '\n' +
+      (ok ? 'CÓDIGO OK' : 'ERROR DE SINCRONIZACIÓN');
+    if(badge.textContent !== message) badge.textContent = message;
+  }
+
   function apply(){
     scheduled = false;
     if(document.visibilityState === 'hidden') return;
@@ -45238,6 +45289,7 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
        Por eso el meta y el fondo del documento principal se verifican juntos,
        incluso si el color lógico no cambió desde la ejecución anterior. */
     paintOuterCanvas(color);
+    updateDebug(color);
     if(color !== lastColor){
       lastColor = color;
       applyNative(color);
@@ -45251,8 +45303,8 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
   }
 
   function watchDoc(doc, depth){
-    if(!doc || depth > 8 || doc.__yosiStatusColorWatchV243) return;
-    doc.__yosiStatusColorWatchV243 = true;
+    if(!doc || depth > 8 || doc.__yosiStatusColorWatchV244) return;
+    doc.__yosiStatusColorWatchV244 = true;
     safe(function(){
       new MutationObserver(queue).observe(doc.documentElement, {
         childList:true,
@@ -45267,8 +45319,8 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
     var frames = safe(function(){ return doc.querySelectorAll('iframe'); }, []);
     for(var i = 0; i < frames.length; i++){
       var frame = frames[i];
-      if(!frame.__yosiStatusColorLoadV243){
-        frame.__yosiStatusColorLoadV243 = true;
+      if(!frame.__yosiStatusColorLoadV244){
+        frame.__yosiStatusColorLoadV244 = true;
         safe(function(){ frame.addEventListener('load', function(){ scan(); queue(); }, true); });
       }
       var child = safe(function(){ return frame.contentDocument || (frame.contentWindow && frame.contentWindow.document); }, null);
