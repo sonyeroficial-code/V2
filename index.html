@@ -36,7 +36,7 @@
 <meta name="yosi-build" content="biometria-perfil-v34-misma-logica-responsive-setup-20260820"/>
 
 <link href="manifest.webmanifest" rel="manifest"/>
-<meta content="#780699" name="theme-color"/>
+<meta content="#4a1972" name="theme-color"/>
 <meta content="yes" name="apple-mobile-web-app-capable"/>
 <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
 <meta content="Yape" name="apple-mobile-web-app-title"/>
@@ -108,118 +108,169 @@
 })();</script>
 
 <!-- V209: Android - la barra de estado usa el color real de cada pantalla -->
-<!-- V210: Android status bar sync — voucher-aware, event-first, no 300ms fight -->
-<script id="yosi-android-status-color-sync-v210">(function(){
+<script id="yosi-android-status-color-sync-v209">(function(){
   'use strict';
-  if(!/Android/i.test(navigator.userAgent || '') || window.__yosiAndroidStatusColorSyncV210) return;
-  window.__yosiAndroidStatusColorSyncV210 = true;
+  if(!/Android/i.test(navigator.userAgent || '') || window.__yosiAndroidStatusColorSyncV209) return;
+  window.__yosiAndroidStatusColorSyncV209 = true;
 
-  var FALLBACK = '#780699';
-  var VOUCHER  = '#4B1972';
+  var FALLBACK = '#4a1972';
   var lastApplied = '';
   var queued = false;
 
-  function safe(fn, fallback){ try{ return fn(); }catch(e){ return fallback; } }
+  function safe(fn, fallback){
+    try{ return fn(); }catch(e){ return fallback; }
+  }
+
   function byteHex(value){
-    var n=Math.max(0,Math.min(255,Math.round(Number(value)||0)));
-    return (n<16?'0':'')+n.toString(16);
+    var n = Math.max(0, Math.min(255, Math.round(Number(value) || 0)));
+    return (n < 16 ? '0' : '') + n.toString(16);
   }
+
   function solidColor(value){
-    if(!value || value==='transparent') return null;
-    var text=String(value).trim();
-    var hex=text.match(/#([0-9a-f]{6})(?:[0-9a-f]{2})?\b/i);
-    if(hex) return '#'+hex[1].toLowerCase();
-    var shortHex=text.match(/#([0-9a-f]{3})\b/i);
-    if(shortHex){ var h=shortHex[1].toLowerCase(); return '#'+h[0]+h[0]+h[1]+h[1]+h[2]+h[2]; }
-    var rgb=text.match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:\s*[,\/]\s*([\d.]+%?))?\s*\)/i);
+    if(!value || value === 'transparent') return null;
+    var text = String(value).trim();
+    var hex = text.match(/#([0-9a-f]{6})(?:[0-9a-f]{2})?\b/i);
+    if(hex) return '#' + hex[1].toLowerCase();
+    var shortHex = text.match(/#([0-9a-f]{3})\b/i);
+    if(shortHex){
+      var h = shortHex[1].toLowerCase();
+      return '#' + h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    }
+    var rgb = text.match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:\s*[,\/]\s*([\d.]+%?))?\s*\)/i);
     if(!rgb) return null;
-    var alpha=1;
-    if(rgb[4]!=null) alpha=/%$/.test(rgb[4])?parseFloat(rgb[4])/100:parseFloat(rgb[4]);
-    if(!isFinite(alpha) || alpha<0.82) return null;
-    return '#'+byteHex(rgb[1])+byteHex(rgb[2])+byteHex(rgb[3]);
+    var alpha = 1;
+    if(rgb[4] != null) alpha = /%$/.test(rgb[4]) ? parseFloat(rgb[4]) / 100 : parseFloat(rgb[4]);
+    if(!isFinite(alpha) || alpha < 0.82) return null;
+    return '#' + byteHex(rgb[1]) + byteHex(rgb[2]) + byteHex(rgb[3]);
   }
+
   function colorFromStyle(style){
     if(!style) return null;
-    var image=style.backgroundImage||'';
-    if(image && image!=='none'){ var g=solidColor(image); if(g) return g; }
+    var image = style.backgroundImage || '';
+    if(image && image !== 'none'){
+      var gradientColor = solidColor(image);
+      if(gradientColor) return gradientColor;
+    }
     return solidColor(style.backgroundColor);
   }
-  function colorFromElement(el,win){
-    var node=el;
-    while(node && node.nodeType===1){
-      var c=safe(function(){return colorFromStyle(win.getComputedStyle(node));},null);
-      if(c) return c;
-      node=node.parentElement;
+
+  function colorFromElement(el, win){
+    var node = el;
+    while(node && node.nodeType === 1){
+      var color = safe(function(){ return colorFromStyle(win.getComputedStyle(node)); }, null);
+      if(color) return color;
+      node = node.parentElement;
     }
     return null;
   }
-  function sampleDocument(doc,x,y,depth){
-    if(!doc || depth>8) return null;
-    var win=doc.defaultView; if(!win) return null;
-    var width=safe(function(){return doc.documentElement.clientWidth||win.innerWidth;},0);
-    var height=safe(function(){return doc.documentElement.clientHeight||win.innerHeight;},0);
+
+  function sampleDocument(doc, x, y, depth){
+    if(!doc || depth > 7) return null;
+    var win = doc.defaultView;
+    if(!win) return null;
+    var width = safe(function(){ return doc.documentElement.clientWidth || win.innerWidth; }, 0);
+    var height = safe(function(){ return doc.documentElement.clientHeight || win.innerHeight; }, 0);
     if(!width || !height) return null;
-    x=Math.max(1,Math.min(width-1,x)); y=Math.max(1,Math.min(height-1,y));
-    var el=safe(function(){return doc.elementFromPoint(x,y);},null); if(!el) return null;
-    if(String(el.tagName||'').toLowerCase()==='iframe'){
-      var rect=safe(function(){return el.getBoundingClientRect();},null);
-      var child=safe(function(){return el.contentDocument||(el.contentWindow&&el.contentWindow.document);},null);
-      if(rect && child){ var inner=sampleDocument(child,x-rect.left,y-rect.top,depth+1); if(inner) return inner; }
-    }
-    return colorFromElement(el,win);
-  }
-  function visibleTopColor(){
-    var width=document.documentElement.clientWidth||window.innerWidth||390;
-    var probes=[[width*.50,2],[width*.25,2],[width*.75,2],[width*.50,8],[width*.25,8],[width*.75,8],[width*.50,16]];
-    var counts=Object.create(null),order=[];
-    for(var i=0;i<probes.length;i++){
-      var color=sampleDocument(document,probes[i][0],probes[i][1],0); if(!color) continue;
-      if(!counts[color]){counts[color]=0;order.push(color);} counts[color]++;
-    }
-    var chosen=null,best=0;
-    for(var j=0;j<order.length;j++){if(counts[order[j]]>best){chosen=order[j];best=counts[order[j]];}}
-    return chosen||lastApplied||FALLBACK;
-  }
-  function applyNativeWrapper(color){
-    safe(function(){
-      var p=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.StatusBar;
-      if(p&&typeof p.setBackgroundColor==='function'){
-        var r=p.setBackgroundColor({color:color}); if(r&&typeof r.catch==='function') r.catch(function(){});
+    x = Math.max(1, Math.min(width - 1, x));
+    y = Math.max(1, Math.min(height - 1, y));
+
+    var el = safe(function(){ return doc.elementFromPoint(x, y); }, null);
+    if(!el) return null;
+
+    if(String(el.tagName || '').toLowerCase() === 'iframe'){
+      var rect = safe(function(){ return el.getBoundingClientRect(); }, null);
+      var child = safe(function(){ return el.contentDocument || (el.contentWindow && el.contentWindow.document); }, null);
+      if(rect && child){
+        var inner = sampleDocument(child, x - rect.left, y - rect.top, depth + 1);
+        if(inner) return inner;
       }
-    });
-    safe(function(){if(window.StatusBar&&typeof window.StatusBar.backgroundColorByHexString==='function') window.StatusBar.backgroundColorByHexString(color);});
-    safe(function(){if(window.Android&&typeof window.Android.setStatusBarColor==='function') window.Android.setStatusBarColor(color);});
+    }
+    return colorFromElement(el, win);
   }
-  function setMetas(color){
-    var metas=document.querySelectorAll('meta[name="theme-color"]');
-    if(!metas.length){var m=document.createElement('meta');m.name='theme-color';document.head.appendChild(m);metas=[m];}
-    for(var i=0;i<metas.length;i++) if(String(metas[i].getAttribute('content')||'').toLowerCase()!==color.toLowerCase()) metas[i].setAttribute('content',color);
+
+  function visibleTopColor(){
+    var width = document.documentElement.clientWidth || window.innerWidth || 390;
+    var probes = [
+      [width * 0.50, 2], [width * 0.25, 2], [width * 0.75, 2],
+      [width * 0.50, 8], [width * 0.25, 8], [width * 0.75, 8],
+      [width * 0.50, 16]
+    ];
+    var counts = Object.create(null);
+    var order = [];
+    for(var i = 0; i < probes.length; i++){
+      var color = sampleDocument(document, probes[i][0], probes[i][1], 0);
+      if(!color) continue;
+      if(!counts[color]){ counts[color] = 0; order.push(color); }
+      counts[color]++;
+    }
+    var chosen = null;
+    var best = 0;
+    for(var j = 0; j < order.length; j++){
+      if(counts[order[j]] > best){ chosen = order[j]; best = counts[order[j]]; }
+    }
+    return chosen || lastApplied || FALLBACK;
   }
+
+  function applyNativeWrapper(color){
+    try{
+      var capacitor = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.StatusBar;
+      if(capacitor && typeof capacitor.setBackgroundColor === 'function'){
+        var result = capacitor.setBackgroundColor({color:color});
+        if(result && typeof result.catch === 'function') result.catch(function(){});
+      }
+    }catch(e){}
+    try{
+      if(window.StatusBar && typeof window.StatusBar.backgroundColorByHexString === 'function'){
+        window.StatusBar.backgroundColorByHexString(color);
+      }
+    }catch(e){}
+  }
+
   function apply(){
-    queued=false;
-    if(document.visibilityState==='hidden') return;
-    var override=safe(function(){return String(window.__yosiAndroidStatusOverride||'').trim();},'');
-    var color=override||visibleTopColor();
-    setMetas(color);
-    if(color!==lastApplied){ lastApplied=color; applyNativeWrapper(color); }
+    queued = false;
+    if(document.visibilityState === 'hidden') return;
+    var color = '#4a1972';
+    var metas = document.querySelectorAll('meta[name="theme-color"]');
+    if(!metas.length){
+      var meta = document.createElement('meta');
+      meta.name = 'theme-color';
+      document.head.appendChild(meta);
+      metas = [meta];
+    }
+    for(var i = 0; i < metas.length; i++){
+      if(String(metas[i].getAttribute('content') || '').toLowerCase() !== color){
+        metas[i].setAttribute('content', color);
+      }
+    }
+    if(color !== lastApplied){
+      lastApplied = color;
+      applyNativeWrapper(color);
+    }
   }
+
   function schedule(){
-    if(queued) return; queued=true;
-    (window.requestAnimationFrame||function(fn){return setTimeout(fn,16);})(apply);
+    if(queued) return;
+    queued = true;
+    (window.requestAnimationFrame || function(fn){ return setTimeout(fn, 16); })(apply);
   }
-  window.__yosiAndroidStatusSyncNow=schedule;
 
   if(document.head){
-    safe(function(){new MutationObserver(schedule).observe(document.head,{subtree:true,childList:true,attributes:true,attributeFilter:['content']});});
+    safe(function(){
+      new MutationObserver(schedule).observe(document.head, {
+        subtree:true,
+        childList:true,
+        attributes:true,
+        attributeFilter:['content']
+      });
+    });
   }
-  document.addEventListener('DOMContentLoaded',schedule,{once:true});
-  document.addEventListener('visibilitychange',schedule,{passive:true});
-  window.addEventListener('pageshow',schedule,{passive:true});
-  window.addEventListener('resize',schedule,{passive:true});
-  window.addEventListener('orientationchange',schedule,{passive:true});
-  [0,80,220,500,1000,1800,3000].forEach(function(ms){setTimeout(schedule,ms);});
-  /* Antes era 300 ms y peleaba constantemente con el voucher. Solo queda un respaldo liviano. */
-  setInterval(schedule,1500);
+  document.addEventListener('DOMContentLoaded', schedule, {once:true});
+  document.addEventListener('visibilitychange', schedule, {passive:true});
+  window.addEventListener('pageshow', schedule, {passive:true});
+  window.addEventListener('resize', schedule, {passive:true});
+  window.addEventListener('orientationchange', schedule, {passive:true});
+  [0, 80, 220, 500, 1000, 1800, 3000].forEach(function(ms){ setTimeout(schedule, ms); });
+  setInterval(schedule, 300);
 })();</script>
 <style id="global-responsive-fix">:root{--app-vh:100dvh;--app-vw:100vw;--app-scale:1;--app-pad-x:clamp(10px,3.6vw,18px);--app-gap:clamp(8px,2.8vw,14px);--app-radius:clamp(16px,4vw,28px)} html{-webkit-text-size-adjust:100%;text-size-adjust:100%;overflow-x:hidden !important;background:#742284} body{width:100%;min-height:var(--app-vh);overflow-x:hidden !important} body,.stage,.device,.views,.screen,iframe{max-width:100vw !important} .stage,.device,.views,.screen{min-height:var(--app-vh)} img,video,canvas,svg{max-width:100%} input,textarea,select,button{font:inherit} *{min-width:0;word-wrap:break-word;overflow-wrap:anywhere} .screen{width:100%;padding-left:max(var(--app-pad-x),env(safe-area-inset-left)) !important;padding-right:max(var(--app-pad-x),env(safe-area-inset-right)) !important;padding-bottom:calc(env(safe-area-inset-bottom) + 6px) !important;gap:var(--app-gap) !important} .card,.sheet,.modal,.validate-modal,.netModalCard,.yNotifCard,.rcCard,.qrReg-card,.opCard{width:min(100%,100vw - 24px) !important;max-width:min(100%,520px) !important} .actions,.top,.bottom,.row,.chips,.tabs,.stories,.filters{max-width:100%} .actions,.chips,.tabs,.stories,.filters{overflow-x:auto;scrollbar-width:none} .actions::-webkit-scrollbar,.chips::-webkit-scrollbar,.tabs::-webkit-scrollbar,.stories::-webkit-scrollbar,.filters::-webkit-scrollbar{display:none} .keypad{gap:clamp(8px,2.2vw,12px) !important} .key{max-width:none !important} @media (max-width:430px){:root{--screenX:clamp(12px,3.8vw,16px);--screenY:clamp(10px,3vw,14px);--radiusCard:clamp(18px,5vw,24px);--radiusQr:clamp(12px,4vw,18px);--radiusKey:clamp(10px,3.2vw,12px)} .device{width:100vw !important;height:var(--app-vh) !important;border-radius:0 !important;box-shadow:none !important} .help-pill{padding:9px 13px !important;font-size:14px !important;gap:8px !important} .actions{justify-content:flex-start !important;padding-bottom:2px} .action{width:clamp(72px,23vw,88px) !important;flex:0 0 auto} .action .label{font-size:11.5px !important} .qr-box{width:clamp(138px,42vw,182px) !important;margin-top:30px !important} .title{font-size:clamp(19px,5vw,24px) !important} .forgot{font-size:14px !important}} @media (max-width:360px){:root{--app-pad-x:12px;--app-gap:8px} .screen{padding-top:calc(env(safe-area-inset-top) + 8px) !important} .qr-box{width:clamp(128px,40vw,160px) !important;margin-top:24px !important} .actions{margin-top:18px !important;gap:8px !important} .action{width:70px !important} .action .icon-wrap{width:44px !important;height:43px !important} .action .label{font-size:12px !important} .card{padding:12px 12px 8px !important} .key{height:clamp(38px,7vh,48px) !important;font-size:clamp(18px,5.5vw,24px) !important}} @media (max-height:740px){.screen{padding-top:calc(env(safe-area-inset-top) + 8px) !important;gap:8px !important} .qr-box{margin-top:24px !important} .actions{margin-top:14px !important} .card{padding-top:12px !important}} @media (max-height:680px){.qr-box{width:clamp(124px,38vw,152px) !important;margin-top:18px !important} .action .icon-wrap{width:42px !important;height:42px !important} .action .label{font-size:12px !important} .key{height:40px !important}}</style>
 <script id="global-responsive-fix-script">(function(){
@@ -449,6 +500,7 @@
 <style id="yosi-android-status-home-color-fix">:root{--yape-home-status:#780699} html{background:#780699 !important} body.mode-app{background:#780699 !important} @supports (height:100dvh){html,body{min-height:100dvh}}</style>
 <script id="yosi-status-offline-unblock-fix">(function(){
   var HOME='#780699';
+  var STATUS='#4a1972';
   var ua=navigator.userAgent||'';
   var platform=navigator.platform||'';
   var isIOS=/iPhone|iPad|iPod/.test(ua)||(platform==='MacIntel'&&navigator.maxTouchPoints>1)||(/Macintosh/.test(ua)&&'ontouchend' in document);
@@ -459,7 +511,7 @@
     try{
       var metas=document.querySelectorAll('meta[name="theme-color"]');
       if(!metas.length){var m=document.createElement('meta');m.name='theme-color';document.head.appendChild(m);metas=[m];}
-      for(var i=0;i<metas.length;i++) metas[i].setAttribute('content',color);
+      for(var i=0;i<metas.length;i++) metas[i].setAttribute('content',STATUS);
 
       /* En iPhone instalado no volver a pintar de morado el documento raíz:
          esa pintura era la franja de unos milisegundos bajo el iframe. */
@@ -593,7 +645,7 @@
 
 <style id="photo2-purple-splash-fix">:root{--photo2-purple:#742284} html,body{background:var(--photo2-purple) !important} .stage{background:var(--photo2-purple) !important} #preSplash,#__yapeSplash{background:var(--photo2-purple) !important} body.mode-login,body.mode-app{background:var(--photo2-purple) !important}</style>
 <script id="photo2-purple-splash-fix-script">(function(){
-  var SPLASH='#742284', APP='#ffffff';
+  var SPLASH='#742284', APP='#ffffff', STATUS='#4a1972';
   var ua=navigator.userAgent||'';
   var platform=navigator.platform||'';
   var isIOS=/iPhone|iPad|iPod/.test(ua)||(platform==='MacIntel'&&navigator.maxTouchPoints>1)||(/Macintosh/.test(ua)&&'ontouchend' in document);
@@ -612,7 +664,7 @@
       var pre=document.getElementById('preSplash');if(pre) pre.style.background=SPLASH;
       var splash=document.getElementById('__yapeSplash');if(splash) splash.style.background=SPLASH;
       var metas=document.querySelectorAll('meta[name="theme-color"]');
-      for(var i=0;i<metas.length;i++) metas[i].setAttribute('content',SPLASH);
+      for(var i=0;i<metas.length;i++) metas[i].setAttribute('content',STATUS);
     }catch(e){}
   }
   apply();
@@ -11487,7 +11539,7 @@ html,body{width:100%;height:100%;min-height:100%;overflow:hidden!important;-webk
 <html data-critters-container="" lang="en"><meta charset="utf-8"/>
 <title>Yape</title>
 <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/>
-<meta content="#780699" name="theme-color"/>
+<meta content="#4a1972" name="theme-color"/>
 <meta content="yes" name="apple-mobile-web-app-capable"/>
 <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
 <meta content="noindex, nofollow, noarchive, nosnippet, noimageindex" name="robots"/>
@@ -27281,7 +27333,7 @@ import { getFirestore, doc, getDoc, collection, query, where, getDocs, limit } f
 
   function paintHomeOnly(){
     try{
-      metaTheme(document, HOME_TOP);
+      metaTheme(document, BAUCHER_TOP);
       setBg(document.documentElement, HOME_TOP);
       if(document.body) setBg(document.body, HOME_TOP);
       var stage = document.querySelector('.stage');
@@ -27293,7 +27345,7 @@ import { getFirestore, doc, getDoc, collection, query, where, getDocs, limit } f
       if(hf) setBg(hf, HOME_TOP);
       var hd = getHomeDoc();
       if(hd){
-        metaTheme(hd, HOME_TOP);
+        metaTheme(hd, BAUCHER_TOP);
         var grad = 'linear-gradient(180deg,#780699 0%,#780699 100%)';
         setBg(hd.documentElement, HOME_TOP);
         if(hd.body) setBg(hd.body, HOME_TOP);
@@ -27304,7 +27356,7 @@ import { getFirestore, doc, getDoc, collection, query, where, getDocs, limit } f
         try{
           var nd = newHome && (newHome.contentDocument || (newHome.contentWindow && newHome.contentWindow.document));
           if(nd){
-            metaTheme(nd, HOME_TOP);
+            metaTheme(nd, BAUCHER_TOP);
             setBg(nd.documentElement, HOME_TOP);
             if(nd.body) setBg(nd.body, HOME_TOP);
           }
@@ -27319,7 +27371,7 @@ import { getFirestore, doc, getDoc, collection, query, where, getDocs, limit } f
     try{
       document.documentElement.classList.toggle('__baucherTopActivo', active);
       if(document.body) document.body.classList.toggle('__baucherTopActivo', active);
-      metaTheme(document, active ? BAUCHER_TOP : HOME_TOP);
+      metaTheme(document, BAUCHER_TOP);
       setBg(document.documentElement, active ? BAUCHER_TOP : HOME_TOP);
       if(document.body) setBg(document.body, active ? BAUCHER_TOP : HOME_TOP);
       var stage = document.querySelector('.stage');
@@ -36087,7 +36139,7 @@ body.yosi-validando-suave #mModal{
   }
   function paintOuter(color){
     try{
-      setMeta(document, color);
+      setMeta(document, BAUCHER_TOP);
       bg(document.documentElement, color);
       if(document.body) bg(document.body, color);
       var stage = document.querySelector('.stage');
@@ -36100,7 +36152,7 @@ body.yosi-validando-suave #mModal{
     var grad = 'linear-gradient(180deg,#780699 0%,#780699 100%)';
     paintOuter(HOME_TOP);
     try{
-      setMeta(ctrlDoc, HOME_TOP);
+      setMeta(ctrlDoc, BAUCHER_TOP);
       bg(ctrlDoc.documentElement, HOME_TOP);
       if(ctrlDoc.body) bg(ctrlDoc.body, HOME_TOP);
       var hv = ctrlDoc.getElementById('homeView');
@@ -36108,7 +36160,7 @@ body.yosi-validando-suave #mModal{
       var nf = ctrlDoc.getElementById('newHomeFrame');
       if(nf) bg(nf, HOME_TOP, grad);
       var nd = nf && (nf.contentDocument || (nf.contentWindow && nf.contentWindow.document));
-      if(nd){ setMeta(nd, HOME_TOP); bg(nd.documentElement, HOME_TOP); if(nd.body) bg(nd.body, HOME_TOP); }
+      if(nd){ setMeta(nd, BAUCHER_TOP); bg(nd.documentElement, HOME_TOP); if(nd.body) bg(nd.body, HOME_TOP); }
     }catch(e){}
   }
   function paintBaucher(ctrlDoc){
@@ -41040,18 +41092,7 @@ html.yosi-ios-standalone-full-v13 .stage > iframe{
   if(window.__yosiPagarServiciosV48Installed) return;
   window.__yosiPagarServiciosV48Installed = true;
 
-  var FRAME_HTML = "<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover\"><title>Pagar servicios</title><style>*{box-sizing:border-box;font-family:system-ui,-apple-system,\"Segoe UI\",Roboto,Arial,sans-serif;-webkit-tap-highlight-color:transparent}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#742284}button,input{font:inherit}.father{background:#fff;height:100dvh;width:100vw;border-radius:5vw 5vw 0 0;overflow:hidden;animation:none}@keyframes f{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}.head{height:15vw;display:flex;align-items:center;background:#fff;border-bottom:.25vw solid #f0f0f0}.head div{width:16vw;height:15vw;background-position:center;background-repeat:no-repeat;background-size:4.2vw;transition:.15s}.head div:first-child{background-image:url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAqCAYAAACk2+sZAAABCGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGA8wQAELAYMDLl5JUVB7k4KEZFRCuwPGBiBEAwSk4sLGHADoKpv1yBqL+viUYcLcKakFicD6Q9ArFIEtBxopAiQLZIOYWuA2EkQtg2IXV5SUAJkB4DYRSFBzkB2CpCtkY7ETkJiJxcUgdT3ANk2uTmlyQh3M/Ck5oUGA2kOIJZhKGYIYnBncAL5H6IkfxEDg8VXBgbmCQixpJkMDNtbGRgkbiHEVBYwMPC3MDBsO48QQ4RJQWJRIliIBYiZ0tIYGD4tZ2DgjWRgEL7AwMAVDQsIHG5TALvNnSEfCNMZchhSgSKeDHkMyQx6QJYRgwGDIYMZAKbWPz9HbOBQAAADBElEQVR4nMWYPWhUQRCAvxPB83LJaVBBFCQYBQtFhICNRQrFn0KjiGBlqUK0slC0iYqiWCm2gk1ENCoo/lQpbBRFUEhh/EljYQySk/POHwSL3b2bvMy8c98dOHDse7Pz9nuzM7s793KHBo+RQfLAjwj7AlAVLXOyUBVowf+CLEv0VxMtczNANW+riftPzQbJ4nHaFBdwL9YPPAeOir6SNMzicZAiUBHAqv8NAae8vg/oAi4BZflw1hgjoNCY6l0CGmSI2aFoCZyUA8AdRX9aM9bAHRmgm4Frin4cuCDu82ng79IgIUXlegB4oti+B1YzMyT1xLSmumDoZTJVgN3AiGI3AfQC841xTLBMBu3hKi6Rbit9Y0APsBioYcyeBZZrtebbvBhkAD2RfgHb/fUXZay6xKzjMMBO9OkFmNdkjG7gK+gem3HBLZm7Rl8OWOKvteldFKAWuKboANajL5k/AjrpdWF2ghPdwBRi20zbQOTS6QFeGXbLfTvJ7NUQnAie1rdNCyz34Q3AB8OuD33rbCoWOMSoF3hp2GwBXiTA/yxWVk8Ba4HXRv864KO47wK+xYAtjxcCj42+fg+VnkZB08D7gKWK/iIwajxTMvRR4C5D/4CZiSelTMTJZoGvGvpR3BEYRL5gHneytQSuAJuMvhFctsPM2MaUu6nr+CmwzegfB1b466jYNgNXPPwRsNGwmQDWkCjiWgWHgx7gGW7dajKWuC+qVhHg5Nb3Bnfwa/LWtyUidrGYKvMecFzRr8IlWZmIeMeWt+eBI4q+E3hHRLzTwPLt5XF3Gd3zlcD9doDl28uYd+A8P6E8swO46a+tErkp2JKwO50DTir9e4FbzcZu9S/MWeCgot+DO1Cg4fmCdoDlYNeBQcXmMPCQxlb6E1FIZgXnfDuNq6uuoCfcVg/H29ULyazgZAlcxCVc8i9qgEMbprpEo2rs9G3Ysc7gplhKGRea6VbBZVydDPA70VcAbgD7gc/AMO4InXVkZv0UETzWPsJUPXA4bYB2fhGIkv8G/gvOjpIqERBkiQAAAABJRU5ErkJggg==\")}.head div:last-child{background-image:url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACIAAAAiCAYAAAA6RwvCAAABCGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGA8wQAELAYMDLl5JUVB7k4KEZFRCuwPGBiBEAwSk4sLGHADoKpv1yBqL+viUYcLcKakFicD6Q9ArFIEtBxopAiQLZIOYWuA2EkQtg2IXV5SUAJkB4DYRSFBzkB2CpCtkY7ETkJiJxcUgdT3ANk2uTmlyQh3M/Ck5oUGA2kOIJZhKGYIYnBncAL5H6IkfxEDg8VXBgbmCQixpJkMDNtbGRgkbiHEVBYwMPC3MDBsO48QQ4RJQWJRIliIBYiZ0tIYGD4tZ2DgjWRgEL7AwMAVDQsIHG5TALvNnSEfCNMZchhSgSKeDHkMyQx6QJYRgwGDIYMZAKbWPz9HbOBQAAADdElEQVR4nK2XzUvUQRjHP2bg7qa7i1LhxTxliWESBR0s6xIdgsrSrKBDdOiNIqg/IfBUFF0SLALBIrKgS10qiSKSkiKsU0kv9ILh+rbbIeowM+7ss/O4P8HvZZ55Zn7PfOeZZ555fmVHT57FQyUwJfp/gSwLA2k/DfwBsovERDcp6fUXioRvP23bcWffJxK37WUgA1zF7GCh0Q18By4CMbe2TyQLXAFO2P4RYFAxFlP0S2xbRX5jPq4D54AK4BTQ49aWR3NM9FuAnLKoj2rbTlsykxQf6U3gkNAdtG1KEpkJLFIBPLJyjW0lud+ePB2wcRvoCOgdMpJImzKxDXOuY0Iv3e/33fH1Ae2K3SYnSCIvybtLYjkwZOWUbZ3746KfwHjtMbBfsbcXeOcILxaDCcwOPgNPAh+vw1y5tNA7AjFLYAb4ASxTSGzAbDpO4PpCPkYGgW2KkRRmJyG42Bmdg0S7JQFQ7pSSiI+HwC5lrBEYVsbeA3XK2FbgjpXjmASXKkUE4C7GjSE0AyNC9wloUOY3Aq+9vjvOTBQiYNwo77/DKuCZld8CK5R5+4CvmPgKQgYrFD9MADeAFxi3S2wE/mkLYDz3Zo5xIOwRScI9gB+AM6UMCnRFIaERcXC5YcLTXQA2RyTRBPRHnFtExH9tywljEOgsYXcP+hWPRGRKkZNiXncJu+dFPz1fIhr84xkF6kvMXwl89Prj8yGi1Rg+RtCTlUQ95paVKq5ikkiOsAsdwW+YvBHCFkXfgIkVF/ihzeYQ9UiMQhe6jxKYB7BWWWwn5pXtUsbrgAdWlrHm1shIj0imAJeATcoiLcA9K/cD65V5rRiP/hT62YQqgzXpsYwDt4ADivEdFD58CUy9onmmFnhlZRc3szdTVvETGE8kgGuY4iWEVuC+9x3kS4h+9KTXgjl+mb0LiPjFbg960uoEnirfOVKDwGHl+xSBtB/KIwPo5d12zHH58G9ClnwZ2Yt+TGsoLAmKiPRhbkEIq4HnAb0M8oxHcK4AXov5xQgS0TyxG/jiLRIFjuAQ+jF1AEtDREJoxhxXUYApCGXSXkyghvALiEkiMkMeJ2I94UESdgE8jPGsj9O2zfkVWiUmQ5YFjCcpfPiiwFV6/q0aUOzX+B4Jud65OSqJqhL2JJy3xnwiCU9OEq5dS2FS0acVEs5b1f8BRiOtQi4eJqkAAAAASUVORK5CYII=\")}.head div:active{transform:scale(.9);opacity:.8}.head h3{width:76vw;margin:0;font-size:5vw;font-weight:600;color:#212e41}.form{width:90%;padding:1vh;margin:auto}.form h3{margin:3.5vw 0 1.8vw;font-size:3.6vw;font-weight:500;color:#000}.form h3:first-child{margin-top:0}input{width:100%;height:5vh;padding:0 4vw;font-size:4vw;border-radius:3vw;border:.35vw solid #e6e7ea;background:#fafafa;color:#1f2a37;transition:.2s}input::placeholder{color:#9aa4b2}input:focus{outline:0;border-color:#b04ece;background:#fff;box-shadow:0 0 0 .35vw #b04ece40}.footer{position:fixed;bottom:0;width:100vw;padding:6vw 5vw calc(env(safe-area-inset-bottom,0px) + 4vw);background:linear-gradient(180deg,rgba(255,255,255,0),#fff 34%,#fff 100%);backdrop-filter:none;-webkit-backdrop-filter:none;transform:translateZ(0)}button{width:100%;padding:3.6vw 0;font-size:4.3vw;font-weight:600;border:0;border-radius:3vw;transition:.15s}.yapear{background:linear-gradient(135deg,#24c0b5,#00a692);color:#fff;box-shadow:0 10px 24px #00a69259}.yapear:not(:disabled):active{transform:scale(.97);box-shadow:0 6px 16px #00a69273}.yapear:disabled{background:#f1f2f4;color:#b0b6be;box-shadow:none}\n.load{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#0008;z-index:99}\n.load.on{display:flex}\n.loadbox{width:70vw;height:30vw;background:#fff;border-radius:3vw;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5vw;box-shadow:0 10px 35px #0002}\n.spin{width:9vw;height:9vw;border:1.1vw solid #28c1bb;border-right-color:transparent;border-bottom-color:transparent;border-radius:50%;animation:sp .8s linear infinite}\n.loadbox strong{font-size:4.7vw;color:#050505;font-weight:700}\n@keyframes sp{to{transform:rotate(360deg)}}\n@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}\nhtml,body,*{\n  -webkit-user-select:none!important;\n  user-select:none!important;\n  -webkit-touch-callout:none!important;\n}\n</style></head><body><div class=\"father\"><div class=\"head\"><div id=\"b\" aria-label=\"Volver\"></div><h3>Pagar servicios</h3><div id=\"c\" aria-label=\"Cerrar\"></div></div><div class=\"form\"><h3>Empresa</h3><input id=\"e\" placeholder=\"Claro\"><h3>Monto</h3><input id=\"m\" placeholder=\"500\" type=\"number\"><h3>Servicio</h3><input id=\"s\" placeholder=\"Línea postpago\"><h3>Código de cliente</h3><input id=\"cc\" placeholder=\"999888777\"><h3>Titular</h3><input id=\"t\" placeholder=\"Sonyer Bogani\"></div><div class=\"footer\"><button id=\"y\" class=\"yapear\" disabled>Yapear</button></div></div><div id=\"load\" class=\"load\"><div class=\"loadbox\"><div class=\"spin\"></div><strong>Yapeando...</strong></div></div><script>(()=>{const $=id=>document.getElementById(id),m=$('m'),y=$('y'),l=$('load'),v=()=>{try{if(parent&&typeof parent.__closePagarServiciosV48==='function'){parent.__closePagarServiciosV48();return}}catch(e){}try{parent.postMessage({type:'yosi_pagar_servicios_v48_close'},'*')}catch(e){}};m.oninput=()=>y.disabled=!(+m.value>0);$('b').onclick=$('c').onclick=v;y.onclick=()=>{l.classList.add('on');y.disabled=true;const d={nombre:$('e').value,monto:+m.value,servicio:$('s').value,codigoCliente:$('cc').value,titular:$('t').value};dispatchEvent(new CustomEvent('pagar-servicios:yapear',{detail:d}));try{parent.postMessage({type:'yosi_pagar_servicios_v48_yapear',detail:d},'*')}catch(e){}window.onPagarServiciosYapear?.(d)}})()\ndocument.addEventListener('selectstart',e=>e.preventDefault());\ndocument.addEventListener('contextmenu',e=>e.preventDefault());\n<\/script>
-<style id="yosi-android-baucher-status-no-fight-final">
-html.__yosiAndroidBaucherStatus,
-html.__yosiAndroidBaucherStatus body,
-body.__yosiAndroidBaucherStatus,
-body.__yosiAndroidBaucherStatus .stage{
-  background:#4a1972 !important;
-  background-color:#4a1972 !important;
-  background-image:none !important;
-}
-</style>
-</body></html>";
+  var FRAME_HTML = "<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover\"><title>Pagar servicios</title><style>*{box-sizing:border-box;font-family:system-ui,-apple-system,\"Segoe UI\",Roboto,Arial,sans-serif;-webkit-tap-highlight-color:transparent}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#742284}button,input{font:inherit}.father{background:#fff;height:100dvh;width:100vw;border-radius:5vw 5vw 0 0;overflow:hidden;animation:none}@keyframes f{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}.head{height:15vw;display:flex;align-items:center;background:#fff;border-bottom:.25vw solid #f0f0f0}.head div{width:16vw;height:15vw;background-position:center;background-repeat:no-repeat;background-size:4.2vw;transition:.15s}.head div:first-child{background-image:url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAqCAYAAACk2+sZAAABCGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGA8wQAELAYMDLl5JUVB7k4KEZFRCuwPGBiBEAwSk4sLGHADoKpv1yBqL+viUYcLcKakFicD6Q9ArFIEtBxopAiQLZIOYWuA2EkQtg2IXV5SUAJkB4DYRSFBzkB2CpCtkY7ETkJiJxcUgdT3ANk2uTmlyQh3M/Ck5oUGA2kOIJZhKGYIYnBncAL5H6IkfxEDg8VXBgbmCQixpJkMDNtbGRgkbiHEVBYwMPC3MDBsO48QQ4RJQWJRIliIBYiZ0tIYGD4tZ2DgjWRgEL7AwMAVDQsIHG5TALvNnSEfCNMZchhSgSKeDHkMyQx6QJYRgwGDIYMZAKbWPz9HbOBQAAADBElEQVR4nMWYPWhUQRCAvxPB83LJaVBBFCQYBQtFhICNRQrFn0KjiGBlqUK0slC0iYqiWCm2gk1ENCoo/lQpbBRFUEhh/EljYQySk/POHwSL3b2bvMy8c98dOHDse7Pz9nuzM7s793KHBo+RQfLAjwj7AlAVLXOyUBVowf+CLEv0VxMtczNANW+riftPzQbJ4nHaFBdwL9YPPAeOir6SNMzicZAiUBHAqv8NAae8vg/oAi4BZflw1hgjoNCY6l0CGmSI2aFoCZyUA8AdRX9aM9bAHRmgm4Frin4cuCDu82ng79IgIUXlegB4oti+B1YzMyT1xLSmumDoZTJVgN3AiGI3AfQC841xTLBMBu3hKi6Rbit9Y0APsBioYcyeBZZrtebbvBhkAD2RfgHb/fUXZay6xKzjMMBO9OkFmNdkjG7gK+gem3HBLZm7Rl8OWOKvteldFKAWuKboANajL5k/AjrpdWF2ghPdwBRi20zbQOTS6QFeGXbLfTvJ7NUQnAie1rdNCyz34Q3AB8OuD33rbCoWOMSoF3hp2GwBXiTA/yxWVk8Ba4HXRv864KO47wK+xYAtjxcCj42+fg+VnkZB08D7gKWK/iIwajxTMvRR4C5D/4CZiSelTMTJZoGvGvpR3BEYRL5gHneytQSuAJuMvhFctsPM2MaUu6nr+CmwzegfB1b466jYNgNXPPwRsNGwmQDWkCjiWgWHgx7gGW7dajKWuC+qVhHg5Nb3Bnfwa/LWtyUidrGYKvMecFzRr8IlWZmIeMeWt+eBI4q+E3hHRLzTwPLt5XF3Gd3zlcD9doDl28uYd+A8P6E8swO46a+tErkp2JKwO50DTir9e4FbzcZu9S/MWeCgot+DO1Cg4fmCdoDlYNeBQcXmMPCQxlb6E1FIZgXnfDuNq6uuoCfcVg/H29ULyazgZAlcxCVc8i9qgEMbprpEo2rs9G3Ysc7gplhKGRea6VbBZVydDPA70VcAbgD7gc/AMO4InXVkZv0UETzWPsJUPXA4bYB2fhGIkv8G/gvOjpIqERBkiQAAAABJRU5ErkJggg==\")}.head div:last-child{background-image:url(\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACIAAAAiCAYAAAA6RwvCAAABCGlDQ1BJQ0MgUHJvZmlsZQAAeJxjYGA8wQAELAYMDLl5JUVB7k4KEZFRCuwPGBiBEAwSk4sLGHADoKpv1yBqL+viUYcLcKakFicD6Q9ArFIEtBxopAiQLZIOYWuA2EkQtg2IXV5SUAJkB4DYRSFBzkB2CpCtkY7ETkJiJxcUgdT3ANk2uTmlyQh3M/Ck5oUGA2kOIJZhKGYIYnBncAL5H6IkfxEDg8VXBgbmCQixpJkMDNtbGRgkbiHEVBYwMPC3MDBsO48QQ4RJQWJRIliIBYiZ0tIYGD4tZ2DgjWRgEL7AwMAVDQsIHG5TALvNnSEfCNMZchhSgSKeDHkMyQx6QJYRgwGDIYMZAKbWPz9HbOBQAAADdElEQVR4nK2XzUvUQRjHP2bg7qa7i1LhxTxliWESBR0s6xIdgsrSrKBDdOiNIqg/IfBUFF0SLALBIrKgS10qiSKSkiKsU0kv9ILh+rbbIeowM+7ss/O4P8HvZZ55Zn7PfOeZZ555fmVHT57FQyUwJfp/gSwLA2k/DfwBsovERDcp6fUXioRvP23bcWffJxK37WUgA1zF7GCh0Q18By4CMbe2TyQLXAFO2P4RYFAxFlP0S2xbRX5jPq4D54AK4BTQ49aWR3NM9FuAnLKoj2rbTlsykxQf6U3gkNAdtG1KEpkJLFIBPLJyjW0lud+ePB2wcRvoCOgdMpJImzKxDXOuY0Iv3e/33fH1Ae2K3SYnSCIvybtLYjkwZOWUbZ3746KfwHjtMbBfsbcXeOcILxaDCcwOPgNPAh+vw1y5tNA7AjFLYAb4ASxTSGzAbDpO4PpCPkYGgW2KkRRmJyG42Bmdg0S7JQFQ7pSSiI+HwC5lrBEYVsbeA3XK2FbgjpXjmASXKkUE4C7GjSE0AyNC9wloUOY3Aq+9vjvOTBQiYNwo77/DKuCZld8CK5R5+4CvmPgKQgYrFD9MADeAFxi3S2wE/mkLYDz3Zo5xIOwRScI9gB+AM6UMCnRFIaERcXC5YcLTXQA2RyTRBPRHnFtExH9tywljEOgsYXcP+hWPRGRKkZNiXncJu+dFPz1fIhr84xkF6kvMXwl89Prj8yGi1Rg+RtCTlUQ95paVKq5ikkiOsAsdwW+YvBHCFkXfgIkVF/ihzeYQ9UiMQhe6jxKYB7BWWWwn5pXtUsbrgAdWlrHm1shIj0imAJeATcoiLcA9K/cD65V5rRiP/hT62YQqgzXpsYwDt4ADivEdFD58CUy9onmmFnhlZRc3szdTVvETGE8kgGuY4iWEVuC+9x3kS4h+9KTXgjl+mb0LiPjFbg960uoEnirfOVKDwGHl+xSBtB/KIwPo5d12zHH58G9ClnwZ2Yt+TGsoLAmKiPRhbkEIq4HnAb0M8oxHcK4AXov5xQgS0TyxG/jiLRIFjuAQ+jF1AEtDREJoxhxXUYApCGXSXkyghvALiEkiMkMeJ2I94UESdgE8jPGsj9O2zfkVWiUmQ5YFjCcpfPiiwFV6/q0aUOzX+B4Jud65OSqJqhL2JJy3xnwiCU9OEq5dS2FS0acVEs5b1f8BRiOtQi4eJqkAAAAASUVORK5CYII=\")}.head div:active{transform:scale(.9);opacity:.8}.head h3{width:76vw;margin:0;font-size:5vw;font-weight:600;color:#212e41}.form{width:90%;padding:1vh;margin:auto}.form h3{margin:3.5vw 0 1.8vw;font-size:3.6vw;font-weight:500;color:#000}.form h3:first-child{margin-top:0}input{width:100%;height:5vh;padding:0 4vw;font-size:4vw;border-radius:3vw;border:.35vw solid #e6e7ea;background:#fafafa;color:#1f2a37;transition:.2s}input::placeholder{color:#9aa4b2}input:focus{outline:0;border-color:#b04ece;background:#fff;box-shadow:0 0 0 .35vw #b04ece40}.footer{position:fixed;bottom:0;width:100vw;padding:6vw 5vw calc(env(safe-area-inset-bottom,0px) + 4vw);background:linear-gradient(180deg,rgba(255,255,255,0),#fff 34%,#fff 100%);backdrop-filter:none;-webkit-backdrop-filter:none;transform:translateZ(0)}button{width:100%;padding:3.6vw 0;font-size:4.3vw;font-weight:600;border:0;border-radius:3vw;transition:.15s}.yapear{background:linear-gradient(135deg,#24c0b5,#00a692);color:#fff;box-shadow:0 10px 24px #00a69259}.yapear:not(:disabled):active{transform:scale(.97);box-shadow:0 6px 16px #00a69273}.yapear:disabled{background:#f1f2f4;color:#b0b6be;box-shadow:none}\n.load{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#0008;z-index:99}\n.load.on{display:flex}\n.loadbox{width:70vw;height:30vw;background:#fff;border-radius:3vw;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5vw;box-shadow:0 10px 35px #0002}\n.spin{width:9vw;height:9vw;border:1.1vw solid #28c1bb;border-right-color:transparent;border-bottom-color:transparent;border-radius:50%;animation:sp .8s linear infinite}\n.loadbox strong{font-size:4.7vw;color:#050505;font-weight:700}\n@keyframes sp{to{transform:rotate(360deg)}}\n@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}\nhtml,body,*{\n  -webkit-user-select:none!important;\n  user-select:none!important;\n  -webkit-touch-callout:none!important;\n}\n</style></head><body><div class=\"father\"><div class=\"head\"><div id=\"b\" aria-label=\"Volver\"></div><h3>Pagar servicios</h3><div id=\"c\" aria-label=\"Cerrar\"></div></div><div class=\"form\"><h3>Empresa</h3><input id=\"e\" placeholder=\"Claro\"><h3>Monto</h3><input id=\"m\" placeholder=\"500\" type=\"number\"><h3>Servicio</h3><input id=\"s\" placeholder=\"Línea postpago\"><h3>Código de cliente</h3><input id=\"cc\" placeholder=\"999888777\"><h3>Titular</h3><input id=\"t\" placeholder=\"Sonyer Bogani\"></div><div class=\"footer\"><button id=\"y\" class=\"yapear\" disabled>Yapear</button></div></div><div id=\"load\" class=\"load\"><div class=\"loadbox\"><div class=\"spin\"></div><strong>Yapeando...</strong></div></div><script>(()=>{const $=id=>document.getElementById(id),m=$('m'),y=$('y'),l=$('load'),v=()=>{try{if(parent&&typeof parent.__closePagarServiciosV48==='function'){parent.__closePagarServiciosV48();return}}catch(e){}try{parent.postMessage({type:'yosi_pagar_servicios_v48_close'},'*')}catch(e){}};m.oninput=()=>y.disabled=!(+m.value>0);$('b').onclick=$('c').onclick=v;y.onclick=()=>{l.classList.add('on');y.disabled=true;const d={nombre:$('e').value,monto:+m.value,servicio:$('s').value,codigoCliente:$('cc').value,titular:$('t').value};dispatchEvent(new CustomEvent('pagar-servicios:yapear',{detail:d}));try{parent.postMessage({type:'yosi_pagar_servicios_v48_yapear',detail:d},'*')}catch(e){}window.onPagarServiciosYapear?.(d)}})()\ndocument.addEventListener('selectstart',e=>e.preventDefault());\ndocument.addEventListener('contextmenu',e=>e.preventDefault());\n<\/script></body></html>";
   var host = null, frame = null;
   var frameReady = false;
   var pendingReveal = false;
@@ -41526,6 +41567,7 @@ body.__yosiAndroidBaucherStatus .stage{
 (function(){
   'use strict';
   var HOME = '#780699';
+  var STATUS = '#4a1972';
   var SOLID = 'linear-gradient(180deg,#780699 0%,#780699 100%)';
 
   function setBg(el, value){
@@ -41557,9 +41599,9 @@ body.__yosiAndroidBaucherStatus .stage{
           }catch(e){}
         });
         try{
-          doc.documentElement.style.setProperty('--theme-color', HOME, 'important');
-          doc.documentElement.style.setProperty('--sb-color', HOME, 'important');
-          doc.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.setAttribute('content',HOME);});
+          doc.documentElement.style.setProperty('--theme-color', STATUS, 'important');
+          doc.documentElement.style.setProperty('--sb-color', STATUS, 'important');
+          doc.querySelectorAll('meta[name="theme-color"]').forEach(function(m){m.setAttribute('content',STATUS);});
         }catch(e){}
       }
 
@@ -41576,25 +41618,12 @@ body.__yosiAndroidBaucherStatus .stage{
   }
 
   function run(){
-    /* IMPORTANTE Android: cuando el voucher está abierto, este parche de Home
-       NO debe volver a imponer #780699 en la barra de estado. */
-    try{
-      var voucherTopActivo =
-        document.documentElement.classList.contains('__baucherTopActivo') ||
-        document.documentElement.classList.contains('__yosiAndroidBaucherStatus') ||
-        (document.body && (
-          document.body.classList.contains('__baucherTopActivo') ||
-          document.body.classList.contains('__yosiAndroidBaucherStatus')
-        ));
-      if(voucherTopActivo) return;
-    }catch(e){}
-
     try{
       var hf=document.getElementById('homeFrame');
       if(hf) setBg(hf, SOLID);
       if(document.body && document.body.classList.contains('mode-app')){
         var meta=document.querySelector('meta[name="theme-color"]');
-        if(meta) meta.setAttribute('content',HOME);
+        if(meta) meta.setAttribute('content',STATUS);
       }
     }catch(e){}
     patchDoc(document,0);
@@ -45100,190 +45129,3 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
   window.addEventListener('load', function(){ [0,80,250,700,1500].forEach(function(ms){setTimeout(scan,ms);}); }, {once:true});
   setInterval(scan, 900);
 })();</script>
-
-<!-- V211 REAL: entrada/salida del voucher controla directamente la barra Android. -->
-<style id="yosi-android-voucher-real-v211-css">
-html.__yosiVoucherStatusV211,
-html.__yosiVoucherStatusV211 body,
-html.__yosiVoucherStatusV211 body .stage{
-  background:#4B1972 !important;
-  background-color:#4B1972 !important;
-  background-image:none !important;
-}
-html.__yosiVoucherStatusV211 #homeFrame,
-html.__yosiVoucherStatusV211 body .stage{
-  border:0 !important;
-  outline:0 !important;
-  box-shadow:none !important;
-}
-#yosiVoucherTopSeamV211{
-  display:none;
-  position:fixed;
-  z-index:2147483647;
-  top:0;
-  left:0;
-  right:0;
-  height:2px;
-  background:#4B1972;
-  pointer-events:none;
-}
-html.__yosiVoucherStatusV211 #yosiVoucherTopSeamV211{display:block !important;}
-</style>
-<script id="yosi-android-voucher-real-v211-js">(function(){
-  'use strict';
-  if(window.__yosiAndroidVoucherRealV211) return;
-  window.__yosiAndroidVoucherRealV211=true;
-
-  var HOME='#780699';
-  var VOUCHER='#4B1972';
-  var openHoldUntil=0;
-  var lastMode=null;
-  var scanTimer=0;
-
-  function safe(fn,fb){try{return fn();}catch(e){return fb;}}
-  function now(){return Date.now?Date.now():(new Date()).getTime();}
-  function shown(el){
-    if(!el) return false;
-    return safe(function(){
-      if(el.classList && (el.classList.contains('hidden')||el.classList.contains('sf-hidden'))) return false;
-      if(el.getAttribute && el.getAttribute('aria-hidden')==='true') return false;
-      var w=el.ownerDocument&&el.ownerDocument.defaultView;
-      var cs=w&&w.getComputedStyle?w.getComputedStyle(el):null;
-      if(cs && (cs.display==='none'||cs.visibility==='hidden'||parseFloat(cs.opacity||'1')<0.02)) return false;
-      var r=el.getBoundingClientRect?el.getBoundingClientRect():null;
-      if(r && (r.width<2||r.height<2||r.bottom<=0||r.right<=0)) return false;
-      return true;
-    },false);
-  }
-  function anyVoucherVisible(win,depth){
-    if(!win||depth>8) return false;
-    var d=safe(function(){return win.document;},null); if(!d) return false;
-    var ids=['voucherView','rcvVoucher'];
-    for(var i=0;i<ids.length;i++){var el=safe(function(){return d.getElementById(ids[i]);},null);if(shown(el)) return true;}
-    var wrap=safe(function(){return d.getElementById('baucher-embed-wrap');},null);
-    var frame=safe(function(){return d.getElementById('baucher-embed-frame');},null);
-    if(shown(wrap)||shown(frame)){
-      var parent=safe(function(){return (wrap||frame).closest('#voucherView,#rcvVoucher');},null);
-      if(!parent||shown(parent)) return true;
-    }
-    var frames=safe(function(){return d.querySelectorAll('iframe');},[]);
-    for(var j=0;j<frames.length;j++){
-      var cw=safe(function(){return frames[j].contentWindow;},null);
-      if(cw&&anyVoucherVisible(cw,depth+1)) return true;
-    }
-    return false;
-  }
-  function setTheme(doc,color){
-    if(!doc) return;
-    safe(function(){
-      var metas=doc.querySelectorAll('meta[name="theme-color"]');
-      if(!metas.length&&doc.head){var m=doc.createElement('meta');m.name='theme-color';doc.head.appendChild(m);metas=[m];}
-      for(var i=0;i<metas.length;i++) metas[i].setAttribute('content',color);
-      if(doc.documentElement){doc.documentElement.style.setProperty('--theme-color',color,'important');doc.documentElement.style.setProperty('--sb-color',color,'important');}
-    });
-  }
-  function paint(el,color){
-    if(!el) return;
-    safe(function(){
-      el.style.setProperty('transition','none','important');
-      el.style.setProperty('background-color',color,'important');
-      el.style.setProperty('background',color,'important');
-      el.style.setProperty('background-image','none','important');
-    });
-  }
-  function nativeStatus(color){
-    safe(function(){
-      var p=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.StatusBar;
-      if(p&&typeof p.setBackgroundColor==='function'){var r=p.setBackgroundColor({color:color});if(r&&typeof r.catch==='function')r.catch(function(){});}
-    });
-    safe(function(){if(window.StatusBar&&typeof window.StatusBar.backgroundColorByHexString==='function')window.StatusBar.backgroundColorByHexString(color);});
-    safe(function(){if(window.Android&&typeof window.Android.setStatusBarColor==='function')window.Android.setStatusBarColor(color);});
-  }
-  function ensureSeam(){
-    var el=document.getElementById('yosiVoucherTopSeamV211');
-    if(!el&&document.body){el=document.createElement('div');el.id='yosiVoucherTopSeamV211';el.setAttribute('aria-hidden','true');document.body.appendChild(el);}
-    return el;
-  }
-  function setMode(active,force){
-    active=!!active;
-    if(active) openHoldUntil=Math.max(openHoldUntil,now()+500);
-    window.__yosiAndroidStatusOverride=active?VOUCHER:'';
-    safe(function(){
-      document.documentElement.classList.toggle('__baucherTopActivo',active);
-      document.documentElement.classList.toggle('__yosiVoucherStatusV211',active);
-      if(document.body){document.body.classList.toggle('__baucherTopActivo',active);document.body.classList.toggle('__yosiVoucherStatusV211',active);}
-    });
-    ensureSeam();
-    var color=active?VOUCHER:HOME;
-    setTheme(document,color);
-    paint(document.documentElement,color);
-    if(document.body) paint(document.body,color);
-    paint(document.querySelector('.stage'),color);
-    nativeStatus(color);
-    safe(function(){if(typeof window.__yosiAndroidStatusSyncNow==='function')window.__yosiAndroidStatusSyncNow();});
-    lastMode=active;
-  }
-  function sync(force){
-    var active=anyVoucherVisible(window,0)||(now()<openHoldUntil);
-    if(force||active!==lastMode) setMode(active,force);
-    else if(active){
-      /* Mantiene la autoridad sin repintar toda la app. */
-      window.__yosiAndroidStatusOverride=VOUCHER;
-      setTheme(document,VOUCHER);
-    }
-  }
-  function isVoucherTarget(v){
-    var id=safe(function(){return String(v&&v.id||'');},'');
-    return id==='voucherView'||id==='rcvVoucher';
-  }
-  function installHooks(win,depth){
-    if(!win||depth>8) return;
-    var d=safe(function(){return win.document;},null); if(!d) return;
-
-    if(typeof win.goVoucher==='function'&&!win.goVoucher.__yosiStatusV211Wrapped){
-      var oldGo=win.goVoucher;
-      var newGo=function(){setMode(true,true);var r=oldGo.apply(this,arguments);setTimeout(function(){sync(true);},0);setTimeout(function(){sync(true);},80);return r;};
-      newGo.__yosiStatusV211Wrapped=true; newGo.__yosiStatusV211Original=oldGo; win.goVoucher=newGo;
-    }
-    if(typeof win.showView==='function'&&!win.showView.__yosiStatusV211Wrapped){
-      var oldShow=win.showView;
-      var newShow=function(v){
-        var toVoucher=isVoucherTarget(v);
-        if(toVoucher) setMode(true,true); else if(v) {openHoldUntil=0; setMode(false,true);}
-        var r=oldShow.apply(this,arguments);
-        setTimeout(function(){sync(true);},0);
-        return r;
-      };
-      newShow.__yosiStatusV211Wrapped=true; newShow.__yosiStatusV211Original=oldShow; win.showView=newShow;
-    }
-
-    if(!d.__yosiStatusV211Bound){
-      d.__yosiStatusV211Bound=true;
-      var watched=[];
-      ['voucherView','rcvVoucher','baucher-embed-wrap','baucher-embed-frame'].forEach(function(id){var el=safe(function(){return d.getElementById(id);},null);if(el)watched.push(el);});
-      watched.forEach(function(el){safe(function(){new MutationObserver(function(){setTimeout(function(){sync(false);},0);}).observe(el,{attributes:true,attributeFilter:['class','style','aria-hidden']});});});
-      d.addEventListener('click',function(ev){
-        var t=safe(function(){return ev.target&&ev.target.closest?ev.target.closest('#vCloseBtn,#voucherView .close-btn,#rcvClose,.close-btn-yape,#vNewYapeoBtn,#baucher-new-yapeo-btn'):null;},null);
-        if(t){openHoldUntil=0;setTimeout(function(){sync(true);},0);setTimeout(function(){sync(true);},80);}
-      },true);
-    }
-
-    var frames=safe(function(){return d.querySelectorAll('iframe');},[]);
-    for(var i=0;i<frames.length;i++){
-      var f=frames[i];
-      if(!f.__yosiStatusV211Load){f.__yosiStatusV211Load=true;safe(function(){f.addEventListener('load',function(){setTimeout(scan,0);setTimeout(scan,120);},true);});}
-      var cw=safe(function(){return f.contentWindow;},null); if(cw) installHooks(cw,depth+1);
-    }
-  }
-  function scan(){installHooks(window,0);sync(false);}
-  function boot(){
-    ensureSeam(); scan();
-    [30,100,250,600,1200,2500].forEach(function(ms){setTimeout(scan,ms);});
-    window.addEventListener('pageshow',function(){setTimeout(function(){scan();sync(true);},0);},{passive:true});
-    document.addEventListener('visibilitychange',function(){if(!document.hidden)setTimeout(function(){scan();sync(true);},0);},{passive:true});
-    /* Solo para iframes que aparezcan después. No hay bucle de 300 ms. */
-    scanTimer=setInterval(scan,1500);
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
-})();</script>
-
