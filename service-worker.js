@@ -1,19 +1,17 @@
 'use strict';
 
-const CACHE_VERSION = 'yape-pwa-status-color-v246-20260903';
+const CACHE_VERSION = 'yape-pwa-status-color-v248-baucher-top-20260903';
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 const APP_SHELL = [
-  './',
-  './index.html',
-  './index.html?v=status-color-v246-20260903',
-  './manifest.webmanifest',
-  './manifest.webmanifest?v=status-color-v246-20260903',
-  './favicon-32.png',
-  './icon-180.png',
-  './icon-192.png',
-  './icon-512.png',
-  './icon-maskable-512.png'
+  '/',
+  '/index.html',
+  '/manifest.webmanifest',
+  '/favicon-32.png',
+  '/icon-180.png',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-maskable-512.png'
 ];
 
 async function cacheAppShell() {
@@ -59,7 +57,7 @@ async function navigationResponse(request) {
     if (response.ok) {
       try {
         const cache = await caches.open(RUNTIME_CACHE);
-        await cache.put('./index.html', response.clone());
+        await cache.put('/index.html', response.clone());
       } catch (_) {
         // La navegación debe continuar aunque el almacenamiento esté lleno.
       }
@@ -67,8 +65,8 @@ async function navigationResponse(request) {
     return response;
   } catch (_) {
     return (await caches.match(request)) ||
-      (await caches.match('./index.html')) ||
-      (await caches.match('./'));
+      (await caches.match('/index.html')) ||
+      (await caches.match('/'));
   }
 }
 
@@ -98,6 +96,22 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+
+  if (url.pathname === '/manifest.webmanifest') {
+    event.respondWith((async () => {
+      try {
+        const fresh = await fetch(new Request(request, { cache: 'no-store' }));
+        if (fresh && fresh.ok) {
+          const cache = await caches.open(RUNTIME_CACHE);
+          cache.put('/manifest.webmanifest', fresh.clone()).catch(() => {});
+        }
+        return fresh;
+      } catch (_) {
+        return (await caches.match('/manifest.webmanifest')) || Response.error();
+      }
+    })());
+    return;
+  }
 
   if (request.mode === 'navigate') {
     event.respondWith(navigationResponse(request));
