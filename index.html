@@ -533,7 +533,9 @@
   metaTheme(HOME);
   document.addEventListener('DOMContentLoaded',syncTheme,{once:true});
   window.addEventListener('pageshow',syncTheme);
-  setInterval(syncTheme,1200);
+  /* Android usa el sincronizador global por pantalla; no fijar el Home encima
+     del color de las vistas secundarias. */
+  if(!/Android/i.test(ua)) setInterval(syncTheme,1200);
   setTimeout(function(){try{window.__releaseBootSplash&&window.__releaseBootSplash('offline-lie-timeout');}catch(e){}},4800);
 })();</script>
 <style id="outer-voucher-home-color-final">#homeView,#homeFrame,#newHomeFrame{background:#780699!important;background-image:linear-gradient(180deg,#780699 0%,#780699 100%)!important}</style>
@@ -27276,6 +27278,9 @@ import { getFirestore, doc, getDoc, collection, query, where, getDocs, limit } f
 
 <style id="fix-baucher-top-retorno-home-v3">html.__baucherTopActivo,html.__baucherTopActivo body,body.__baucherTopActivo,body.__baucherTopActivo .stage{background:#4a1972 !important;background-color:#4a1972 !important;background-image:none !important;transition:none !important} html,body,.stage,#homeFrame,#newHomeFrame,#voucherView,#baucher-embed-wrap,#baucher-embed-frame{transition-property:none !important}</style>
 <script id="fix-baucher-top-retorno-home-v3-js">(function(){
+  /* En Android el color superior lo decide el sincronizador global de cada
+     pantalla. Este parche antiguo solo diferenciaba Home/voucher. */
+  if(/Android/i.test(navigator.userAgent || '')) return;
   var HOME_TOP = '#780699';
   var BAUCHER_TOP = '#4a1972';
   var current = null;
@@ -41659,12 +41664,8 @@ html,body,.stage,.views,.view,#homeView,#voucherView,#baucher-embed-wrap,#bauche
     try{
       var hf=document.getElementById('homeFrame');
       if(hf) setBg(hf, SOLID);
-      var voucherActive = document.documentElement.classList.contains('__baucherTopActivo') ||
-        (document.body && document.body.classList.contains('__baucherTopActivo'));
-      if(document.body && document.body.classList.contains('mode-app') && !voucherActive){
-        var meta=document.querySelector('meta[name="theme-color"]');
-        if(meta) meta.setAttribute('content',HOME);
-      }
+      /* No fijar aquí el meta theme-color: otras pantallas pueden tener un
+         encabezado distinto al Home. El sincronizador Android lo actualiza. */
     }catch(e){}
     patchDoc(document,0);
   }
@@ -45168,4 +45169,192 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scan, {once:true}); else scan();
   window.addEventListener('load', function(){ [0,80,250,700,1500].forEach(function(ms){setTimeout(scan,ms);}); }, {once:true});
   setInterval(scan, 900);
+})();</script>
+
+<!-- V240: Android - la barra de sistema continúa el color real de cada pantalla -->
+<script id="yosi-android-screen-status-color-v240">(function(){
+  'use strict';
+  if(!/Android/i.test(navigator.userAgent || '') || window.__yosiAndroidScreenStatusColorV240) return;
+  window.__yosiAndroidScreenStatusColorV240 = true;
+
+  var HOME = '#780699';
+  var lastColor = '';
+  var scheduled = false;
+
+  function safe(fn, fallback){
+    try{ return fn(); }catch(e){ return fallback; }
+  }
+
+  function hexByte(value){
+    var n = Math.max(0, Math.min(255, Math.round(Number(value) || 0)));
+    return (n < 16 ? '0' : '') + n.toString(16);
+  }
+
+  function opaqueColor(value){
+    if(!value || value === 'none' || value === 'transparent') return null;
+    var text = String(value).trim();
+    var hex = text.match(/#([0-9a-f]{6})(?:[0-9a-f]{2})?\b/i);
+    if(hex) return '#' + hex[1].toLowerCase();
+    var shortHex = text.match(/#([0-9a-f]{3})\b/i);
+    if(shortHex){
+      var h = shortHex[1].toLowerCase();
+      return '#' + h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    }
+    var rgb = text.match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:\s*[,\/]\s*([\d.]+%?))?\s*\)/i);
+    if(!rgb) return null;
+    var alpha = 1;
+    if(rgb[4] != null) alpha = /%$/.test(rgb[4]) ? parseFloat(rgb[4]) / 100 : parseFloat(rgb[4]);
+    if(!isFinite(alpha) || alpha < 0.88) return null;
+    return '#' + hexByte(rgb[1]) + hexByte(rgb[2]) + hexByte(rgb[3]);
+  }
+
+  function colorFromNode(node, win){
+    var el = node;
+    while(el && el.nodeType === 1){
+      var style = safe(function(){ return win.getComputedStyle(el); }, null);
+      if(style){
+        /* En un degradado, el primer color es el que toca el borde superior. */
+        var fromImage = opaqueColor(style.backgroundImage);
+        if(fromImage) return fromImage;
+        var fromFill = opaqueColor(style.backgroundColor);
+        if(fromFill) return fromFill;
+      }
+      el = el.parentElement;
+    }
+    return null;
+  }
+
+  function sample(doc, x, y, depth){
+    if(!doc || depth > 8) return null;
+    var win = doc.defaultView;
+    if(!win) return null;
+    var width = safe(function(){ return doc.documentElement.clientWidth || win.innerWidth; }, 0);
+    var height = safe(function(){ return doc.documentElement.clientHeight || win.innerHeight; }, 0);
+    if(width < 2 || height < 2) return null;
+    x = Math.max(1, Math.min(width - 1, x));
+    y = Math.max(1, Math.min(height - 1, y));
+
+    var nodes = safe(function(){
+      return doc.elementsFromPoint ? doc.elementsFromPoint(x, y) : [doc.elementFromPoint(x, y)];
+    }, []);
+    for(var i = 0; i < nodes.length; i++){
+      var el = nodes[i];
+      if(!el || el.nodeType !== 1) continue;
+      if(String(el.tagName || '').toLowerCase() === 'iframe'){
+        var rect = safe(function(){ return el.getBoundingClientRect(); }, null);
+        var innerDoc = safe(function(){ return el.contentDocument || (el.contentWindow && el.contentWindow.document); }, null);
+        if(rect && innerDoc){
+          var innerColor = sample(innerDoc, x - rect.left, y - rect.top, depth + 1);
+          if(innerColor) return innerColor;
+        }
+      }
+      var color = colorFromNode(el, win);
+      if(color) return color;
+    }
+    return null;
+  }
+
+  function visibleTopColor(){
+    var width = document.documentElement.clientWidth || window.innerWidth || 390;
+    var probes = [
+      [width * .50, 2], [width * .22, 2], [width * .78, 2],
+      [width * .50, 7], [width * .22, 7], [width * .78, 7],
+      [width * .50, 15]
+    ];
+    var counts = Object.create(null);
+    var order = [];
+    for(var i = 0; i < probes.length; i++){
+      var color = sample(document, probes[i][0], probes[i][1], 0);
+      if(!color) continue;
+      if(!counts[color]){ counts[color] = 0; order.push(color); }
+      counts[color]++;
+    }
+    var chosen = null;
+    var best = 0;
+    for(var j = 0; j < order.length; j++){
+      if(counts[order[j]] > best){ chosen = order[j]; best = counts[order[j]]; }
+    }
+    return chosen || lastColor || HOME;
+  }
+
+  function applyNative(color){
+    safe(function(){
+      var status = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.StatusBar;
+      if(status && typeof status.setBackgroundColor === 'function'){
+        var result = status.setBackgroundColor({color:color});
+        if(result && typeof result.catch === 'function') result.catch(function(){});
+      }
+    });
+    safe(function(){
+      if(window.StatusBar && typeof window.StatusBar.backgroundColorByHexString === 'function'){
+        window.StatusBar.backgroundColorByHexString(color);
+      }
+    });
+  }
+
+  function apply(){
+    scheduled = false;
+    if(document.visibilityState === 'hidden') return;
+    var color = visibleTopColor();
+    var metas = document.querySelectorAll('meta[name="theme-color"]');
+    if(!metas.length){
+      var meta = document.createElement('meta');
+      meta.name = 'theme-color';
+      document.head.appendChild(meta);
+      metas = [meta];
+    }
+    for(var i = 0; i < metas.length; i++){
+      if(String(metas[i].getAttribute('content') || '').toLowerCase() !== color){
+        metas[i].setAttribute('content', color);
+      }
+    }
+    document.documentElement.style.setProperty('--yosi-active-top-color', color);
+    if(color !== lastColor){
+      lastColor = color;
+      applyNative(color);
+    }
+  }
+
+  function queue(){
+    if(scheduled) return;
+    scheduled = true;
+    (window.requestAnimationFrame || function(fn){ return setTimeout(fn, 16); })(apply);
+  }
+
+  function watchDoc(doc, depth){
+    if(!doc || depth > 8 || doc.__yosiStatusColorWatchV240) return;
+    doc.__yosiStatusColorWatchV240 = true;
+    safe(function(){
+      new MutationObserver(queue).observe(doc.documentElement, {
+        childList:true,
+        subtree:true,
+        attributes:true,
+        attributeFilter:['class','style','hidden','aria-hidden']
+      });
+    });
+    ['pointerdown','pointerup','touchstart','touchend','click'].forEach(function(type){
+      safe(function(){ doc.addEventListener(type, queue, true); });
+    });
+    var frames = safe(function(){ return doc.querySelectorAll('iframe'); }, []);
+    for(var i = 0; i < frames.length; i++){
+      var frame = frames[i];
+      if(!frame.__yosiStatusColorLoadV240){
+        frame.__yosiStatusColorLoadV240 = true;
+        safe(function(){ frame.addEventListener('load', function(){ scan(); queue(); }, true); });
+      }
+      var child = safe(function(){ return frame.contentDocument || (frame.contentWindow && frame.contentWindow.document); }, null);
+      if(child) watchDoc(child, depth + 1);
+    }
+  }
+
+  function scan(){ watchDoc(document, 0); queue(); }
+  window.__yosiRefreshAndroidTopColor = function(){ scan(); apply(); };
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scan, {once:true});
+  else scan();
+  window.addEventListener('load', scan, {once:true});
+  window.addEventListener('pageshow', scan, {passive:true});
+  window.addEventListener('resize', queue, {passive:true});
+  window.addEventListener('orientationchange', queue, {passive:true});
+  [0,40,100,220,500,900,1500,2600].forEach(function(ms){ setTimeout(scan, ms); });
+  setInterval(scan, 240);
 })();</script>
