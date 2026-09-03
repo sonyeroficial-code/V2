@@ -33,7 +33,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
-<meta name="yosi-build" content="biometria-perfil-v34-misma-logica-responsive-setup-20260820"/>
+<meta name="yosi-build" content="android-status-color-por-pantalla-v241-20260903"/>
 
 <link href="manifest.webmanifest" rel="manifest"/>
 <meta content="#780699" name="theme-color"/>
@@ -110,6 +110,9 @@
 <!-- V209: Android - la barra de estado usa el color real de cada pantalla -->
 <script id="yosi-android-status-color-sync-v209">(function(){
   'use strict';
+  /* Sustituido por V241 al final del archivo: aquel sincronizador conoce la
+     pantalla activa y evita tomar el color de una vista oculta. */
+  return;
   if(!/Android/i.test(navigator.userAgent || '') || window.__yosiAndroidStatusColorSyncV209) return;
   window.__yosiAndroidStatusColorSyncV209 = true;
 
@@ -45208,18 +45211,67 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
     return '#' + hexByte(rgb[1]) + hexByte(rgb[2]) + hexByte(rgb[3]);
   }
 
-  function colorFromNode(node, win){
-    var el = node;
-    while(el && el.nodeType === 1){
-      var style = safe(function(){ return win.getComputedStyle(el); }, null);
-      if(style){
-        /* En un degradado, el primer color es el que toca el borde superior. */
-        var fromImage = opaqueColor(style.backgroundImage);
-        if(fromImage) return fromImage;
-        var fromFill = opaqueColor(style.backgroundColor);
-        if(fromFill) return fromFill;
-      }
-      el = el.parentElement;
+  function ownColor(el, win){
+    if(!el || el.nodeType !== 1) return null;
+    var style = safe(function(){ return win.getComputedStyle(el); }, null);
+    if(style){
+      /* En un degradado, el primer color es el que toca el borde superior. */
+      var fromImage = opaqueColor(style.backgroundImage);
+      if(fromImage) return fromImage;
+      var fromFill = opaqueColor(style.backgroundColor);
+      if(fromFill) return fromFill;
+    }
+    return null;
+  }
+
+  function isVisible(el){
+    if(!el) return false;
+    return safe(function(){
+      if(el.hidden || el.getAttribute('aria-hidden') === 'true') return false;
+      if(el.classList && (el.classList.contains('hidden') || el.classList.contains('sf-hidden'))) return false;
+      var win = el.ownerDocument.defaultView;
+      var style = win.getComputedStyle(el);
+      if(style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity || 1) < .03) return false;
+      var rect = el.getBoundingClientRect();
+      return rect.width > 2 && rect.height > 2 && rect.right > 0 && rect.bottom > 0;
+    }, false);
+  }
+
+  function homeDocument(){
+    return safe(function(){
+      var frame = document.getElementById('homeFrame');
+      return frame && (frame.contentDocument || (frame.contentWindow && frame.contentWindow.document));
+    }, null);
+  }
+
+  function knownVisibleColor(){
+    if(document.body && document.body.classList.contains('mode-login')) return '#742284';
+    var doc = homeDocument();
+    if(!doc) return null;
+
+    /* Pantallas superpuestas: se revisan primero porque pueden estar encima de
+       una vista normal que continúa montada en el DOM. */
+    var exact = [
+      ['voucherView', '#4a1972'],
+      ['rcvVoucher', '#5b2c83'],
+      ['qrScanView', '#333333'],
+      ['agregarContactoView', '#22002f'],
+      ['datosView', '#401066'],
+      ['qrRegView', '#742284']
+    ];
+    for(var i = 0; i < exact.length; i++){
+      if(isVisible(doc.getElementById(exact[i][0]))) return exact[i][1];
+    }
+
+    var normal = [
+      ['perfilEditarView', '#ffffff'],
+      ['banksView', '#742284'],
+      ['montoView', '#742284'],
+      ['yapearView', '#ffffff'],
+      ['homeView', HOME]
+    ];
+    for(var j = 0; j < normal.length; j++){
+      if(isVisible(doc.getElementById(normal[j][0]))) return normal[j][1];
     }
     return null;
   }
@@ -45248,13 +45300,26 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
           if(innerColor) return innerColor;
         }
       }
-      var color = colorFromNode(el, win);
+      /* Revisar primero el fondo propio de cada capa. Si se subiera a sus
+         padres aquí, una capa transparente podría devolver el Home que está
+         detrás y ocultar el color de la pantalla actual. */
+      var color = ownColor(el, win);
       if(color) return color;
+    }
+    if(nodes.length){
+      var parent = nodes[0] && nodes[0].parentElement;
+      while(parent){
+        var inherited = ownColor(parent, win);
+        if(inherited) return inherited;
+        parent = parent.parentElement;
+      }
     }
     return null;
   }
 
   function visibleTopColor(){
+    var exact = knownVisibleColor();
+    if(exact) return exact;
     var width = document.documentElement.clientWidth || window.innerWidth || 390;
     var probes = [
       [width * .50, 2], [width * .22, 2], [width * .78, 2],
@@ -45307,6 +45372,17 @@ import { getFirestore, doc, getDoc, onSnapshot } from "https://www.gstatic.com/f
       if(String(metas[i].getAttribute('content') || '').toLowerCase() !== color){
         metas[i].setAttribute('content', color);
       }
+    }
+    /* Algunos WebView/Chrome de Android solo repintan la barra cuando cambia
+       el nodo meta, no únicamente su atributo. */
+    if(color !== lastColor && document.head){
+      var fresh = document.createElement('meta');
+      fresh.name = 'theme-color';
+      fresh.content = color;
+      for(var j = metas.length - 1; j >= 0; j--){
+        if(metas[j] && metas[j].parentNode) metas[j].parentNode.removeChild(metas[j]);
+      }
+      document.head.insertBefore(fresh, document.head.firstChild);
     }
     document.documentElement.style.setProperty('--yosi-active-top-color', color);
     if(color !== lastColor){
