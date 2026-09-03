@@ -36,7 +36,7 @@
 <meta name="yosi-build" content="biometria-perfil-v34-misma-logica-responsive-setup-20260820"/>
 
 <link href="manifest.webmanifest" rel="manifest"/>
-<meta content="#4A1972" name="theme-color"/>
+<meta content="#780699" name="theme-color"/>
 <meta content="yes" name="apple-mobile-web-app-capable"/>
 <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
 <meta content="Yape" name="apple-mobile-web-app-title"/>
@@ -113,7 +113,7 @@
   if(!/Android/i.test(navigator.userAgent || '') || window.__yosiAndroidStatusColorSyncV209) return;
   window.__yosiAndroidStatusColorSyncV209 = true;
 
-  var FALLBACK = '#4a1972';
+  var FALLBACK = '#780699';
   var lastApplied = '';
   var queued = false;
 
@@ -229,7 +229,7 @@
   function apply(){
     queued = false;
     if(document.visibilityState === 'hidden') return;
-    var color = '#4a1972';
+    var color = visibleTopColor();
     var metas = document.querySelectorAll('meta[name="theme-color"]');
     if(!metas.length){
       var meta = document.createElement('meta');
@@ -270,6 +270,7 @@
   window.addEventListener('resize', schedule, {passive:true});
   window.addEventListener('orientationchange', schedule, {passive:true});
   [0, 80, 220, 500, 1000, 1800, 3000].forEach(function(ms){ setTimeout(schedule, ms); });
+  setInterval(schedule, 300);
 })();</script>
 <style id="global-responsive-fix">:root{--app-vh:100dvh;--app-vw:100vw;--app-scale:1;--app-pad-x:clamp(10px,3.6vw,18px);--app-gap:clamp(8px,2.8vw,14px);--app-radius:clamp(16px,4vw,28px)} html{-webkit-text-size-adjust:100%;text-size-adjust:100%;overflow-x:hidden !important;background:#742284} body{width:100%;min-height:var(--app-vh);overflow-x:hidden !important} body,.stage,.device,.views,.screen,iframe{max-width:100vw !important} .stage,.device,.views,.screen{min-height:var(--app-vh)} img,video,canvas,svg{max-width:100%} input,textarea,select,button{font:inherit} *{min-width:0;word-wrap:break-word;overflow-wrap:anywhere} .screen{width:100%;padding-left:max(var(--app-pad-x),env(safe-area-inset-left)) !important;padding-right:max(var(--app-pad-x),env(safe-area-inset-right)) !important;padding-bottom:calc(env(safe-area-inset-bottom) + 6px) !important;gap:var(--app-gap) !important} .card,.sheet,.modal,.validate-modal,.netModalCard,.yNotifCard,.rcCard,.qrReg-card,.opCard{width:min(100%,100vw - 24px) !important;max-width:min(100%,520px) !important} .actions,.top,.bottom,.row,.chips,.tabs,.stories,.filters{max-width:100%} .actions,.chips,.tabs,.stories,.filters{overflow-x:auto;scrollbar-width:none} .actions::-webkit-scrollbar,.chips::-webkit-scrollbar,.tabs::-webkit-scrollbar,.stories::-webkit-scrollbar,.filters::-webkit-scrollbar{display:none} .keypad{gap:clamp(8px,2.2vw,12px) !important} .key{max-width:none !important} @media (max-width:430px){:root{--screenX:clamp(12px,3.8vw,16px);--screenY:clamp(10px,3vw,14px);--radiusCard:clamp(18px,5vw,24px);--radiusQr:clamp(12px,4vw,18px);--radiusKey:clamp(10px,3.2vw,12px)} .device{width:100vw !important;height:var(--app-vh) !important;border-radius:0 !important;box-shadow:none !important} .help-pill{padding:9px 13px !important;font-size:14px !important;gap:8px !important} .actions{justify-content:flex-start !important;padding-bottom:2px} .action{width:clamp(72px,23vw,88px) !important;flex:0 0 auto} .action .label{font-size:11.5px !important} .qr-box{width:clamp(138px,42vw,182px) !important;margin-top:30px !important} .title{font-size:clamp(19px,5vw,24px) !important} .forgot{font-size:14px !important}} @media (max-width:360px){:root{--app-pad-x:12px;--app-gap:8px} .screen{padding-top:calc(env(safe-area-inset-top) + 8px) !important} .qr-box{width:clamp(128px,40vw,160px) !important;margin-top:24px !important} .actions{margin-top:18px !important;gap:8px !important} .action{width:70px !important} .action .icon-wrap{width:44px !important;height:43px !important} .action .label{font-size:12px !important} .card{padding:12px 12px 8px !important} .key{height:clamp(38px,7vh,48px) !important;font-size:clamp(18px,5.5vw,24px) !important}} @media (max-height:740px){.screen{padding-top:calc(env(safe-area-inset-top) + 8px) !important;gap:8px !important} .qr-box{margin-top:24px !important} .actions{margin-top:14px !important} .card{padding-top:12px !important}} @media (max-height:680px){.qr-box{width:clamp(124px,38vw,152px) !important;margin-top:18px !important} .action .icon-wrap{width:42px !important;height:42px !important} .action .label{font-size:12px !important} .key{height:40px !important}}</style>
 <script id="global-responsive-fix-script">(function(){
@@ -509,7 +510,7 @@
     try{
       var metas=document.querySelectorAll('meta[name="theme-color"]');
       if(!metas.length){var m=document.createElement('meta');m.name='theme-color';document.head.appendChild(m);metas=[m];}
-      for(var i=0;i<metas.length;i++) metas[i].setAttribute('content','#4a1972');
+      for(var i=0;i<metas.length;i++) metas[i].setAttribute('content',color);
 
       /* En iPhone instalado no volver a pintar de morado el documento raíz:
          esa pintura era la franja de unos milisegundos bajo el iframe. */
@@ -13043,7 +13044,7 @@ body.yape-help-open .background-all > *:not(#yapeHelpPersonajeScreen){
 
   function paintOuter(color){
     try{
-      setMeta(document, BAUCHER_TOP);
+      setMeta(document, color);
       document.documentElement.classList.toggle('__baucherTopActivo', color === BAUCHER_TOP);
       if(document.body) document.body.classList.toggle('__baucherTopActivo', color === BAUCHER_TOP);
       setBg(document.documentElement, color);
@@ -13101,7 +13102,7 @@ body.yape-help-open .background-all > *:not(#yapeHelpPersonajeScreen){
     lastVoucherTouch = 0;
     paintOuter(HOME_TOP);
     // En Home se restaura solo el color de base; los gradientes internos del Home los mantiene tu CSS original.
-    setMeta(document, BAUCHER_TOP);
+    setMeta(document, HOME_TOP);
     [0,12,40,90,180,350].forEach(function(ms){ setTimeout(function(){ paintOuter(HOME_TOP); }, ms); });
   }
 
@@ -27331,7 +27332,7 @@ import { getFirestore, doc, getDoc, collection, query, where, getDocs, limit } f
 
   function paintHomeOnly(){
     try{
-      metaTheme(document, BAUCHER_TOP);
+      metaTheme(document, HOME_TOP);
       setBg(document.documentElement, HOME_TOP);
       if(document.body) setBg(document.body, HOME_TOP);
       var stage = document.querySelector('.stage');
@@ -27369,7 +27370,7 @@ import { getFirestore, doc, getDoc, collection, query, where, getDocs, limit } f
     try{
       document.documentElement.classList.toggle('__baucherTopActivo', active);
       if(document.body) document.body.classList.toggle('__baucherTopActivo', active);
-      metaTheme(document, BAUCHER_TOP);
+      metaTheme(document, active ? BAUCHER_TOP : HOME_TOP);
       setBg(document.documentElement, active ? BAUCHER_TOP : HOME_TOP);
       if(document.body) setBg(document.body, active ? BAUCHER_TOP : HOME_TOP);
       var stage = document.querySelector('.stage');
@@ -41620,7 +41621,7 @@ html.yosi-ios-standalone-full-v13 .stage > iframe{
       if(hf) setBg(hf, SOLID);
       if(document.body && document.body.classList.contains('mode-app')){
         var meta=document.querySelector('meta[name="theme-color"]');
-        if(meta) meta.setAttribute('content','#4a1972');
+        if(meta) meta.setAttribute('content',HOME);
       }
     }catch(e){}
     patchDoc(document,0);
